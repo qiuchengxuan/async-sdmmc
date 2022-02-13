@@ -61,6 +61,7 @@ impl R7 {
     pub fn voltage_accepted(self) -> bool {
         self.0.bit(8) // only bit 8 meaningful, for now
     }
+
     pub fn echo_back_check_pattern(self) -> u8 {
         self.0 as u8
     }

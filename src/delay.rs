@@ -1,7 +1,14 @@
+#[cfg(feature = "async")]
 use core::future;
-use core::time;
 
-pub trait AsyncDelay {
+#[cfg(not(feature = "async"))]
+use embedded_hal::blocking::delay::DelayMs;
+
+#[cfg(feature = "async")]
+pub trait Delay<UXX> {
     type Future: future::Future<Output = ()>;
-    fn delay(&mut self, duration: time::Duration) -> Self::Future;
+    fn delay_ms(&mut self, duration: UXX) -> Self::Future;
 }
+
+#[cfg(not(feature = "async"))]
+pub trait Delay<UXX>: DelayMs<UXX> {}

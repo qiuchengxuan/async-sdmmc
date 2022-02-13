@@ -1,26 +1,28 @@
+#[cfg(feature = "async")]
 use alloc::boxed::Box;
-use core::slice;
-use core::time::Duration;
+use core::{slice, time::Duration};
 
+#[cfg(feature = "async")]
 use async_trait::async_trait;
-use embedded_hal::digital::v2::OutputPin;
-use embedded_hal::timer::CountDown;
+use embedded_hal::{digital::v2::OutputPin, timer::CountDown};
 
-use crate::bus::Write;
-use crate::sd::command::Command;
-use crate::sd::data;
-use crate::sd::BLOCK_SIZE;
+use crate::{
+    bus::Write,
+    sd::{command::Command, data, BLOCK_SIZE},
+};
 
-use super::bus::{AsyncSPI, BUSError, Bus, Error};
+use super::bus::{BUSError, Bus, Error, Transfer};
 
-#[async_trait]
+#[cfg_attr(feature = "async", async_trait)]
+#[deasync::deasync]
 impl<E, F, SPI, CS, C> Write for Bus<SPI, CS, C>
 where
-    SPI: AsyncSPI<Error = E> + Send,
+    SPI: Transfer<Error = E> + Send,
     CS: OutputPin<Error = F> + Send,
     C: CountDown<Time = Duration> + Send,
 {
     type Error = Error<E, F>;
+
     async fn write(&mut self, address: u32, bytes: &[u8]) -> Result<(), BUSError<E, F>> {
         self.tx(&[0xFF; 5]).await?;
         self.select()?;

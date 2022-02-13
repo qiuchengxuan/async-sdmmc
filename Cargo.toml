@@ -7,10 +7,14 @@ authors = ["qiuchengxuan <qiuchengxuan@gmail.com>"]
 edition = "2021"
 repository = "https://github.com/qiuchengxuan/async-sdmmc"
 
+[features]
+async = ["deasync/bypass"]
+
 [dependencies]
 async-trait = "0.1"
 bitfield = "0.13"
 embedded-hal = "0.2"
+deasync = "0.1"
 nb = "1.0"
 void = "1.0"
 

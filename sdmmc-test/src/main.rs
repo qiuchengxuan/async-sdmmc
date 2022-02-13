@@ -1,17 +1,12 @@
 extern crate spidev;
 
-use std::future;
-use std::io;
-use std::thread;
-use std::time;
+use std::{future, io, thread, time};
 
 use async_std::task;
 use clap::{App, Arg};
 use gpio::{sysfs::SysFsGpioOutput, GpioOut};
 use mbr_nostd::{MasterBootRecord, PartitionTable};
-use sdmmc::bus::spi;
-use sdmmc::delay::AsyncDelay;
-use sdmmc::SD;
+use sdmmc::{bus::spi, SD};
 use spidev::{SpiModeFlags, Spidev, SpidevOptions, SpidevTransfer};
 
 fn parse_args() -> Result<(String, u16), String> {
@@ -33,10 +28,10 @@ fn parse_args() -> Result<(String, u16), String> {
 struct AsyncSPI(Spidev);
 
 #[async_trait::async_trait]
-impl spi::AsyncSPI for AsyncSPI {
+impl spi::Transfer for AsyncSPI {
     type Error = io::Error;
 
-    async fn trx(&mut self, tx: &[u8], rx: &mut [u8]) -> io::Result<()> {
+    async fn transfer(&mut self, tx: &[u8], rx: &mut [u8]) -> io::Result<()> {
         let mut transfer = match (tx.len(), rx.len()) {
             (0, _) => SpidevTransfer::read(rx),
             (_, 0) => SpidevTransfer::write(tx),
@@ -96,11 +91,11 @@ impl embedded_hal::timer::CountDown for CountDown {
 
 struct Delay;
 
-impl AsyncDelay for Delay {
+impl<UXX: Into<u64>> sdmmc::delay::Delay<UXX> for Delay {
     type Future = future::Ready<()>;
 
-    fn delay(&mut self, duration: time::Duration) -> Self::Future {
-        thread::sleep(duration);
+    fn delay_ms(&mut self, ms: UXX) -> Self::Future {
+        thread::sleep(time::Duration::from_millis(ms.into()));
         future::ready(())
     }
 }

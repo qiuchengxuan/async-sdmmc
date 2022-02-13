@@ -1,26 +1,25 @@
+#[cfg(feature = "async")]
 use alloc::boxed::Box;
-use core::convert::TryFrom;
-use core::slice;
-use core::time::Duration;
+use core::{convert::TryFrom, slice, time::Duration};
 
+#[cfg(feature = "async")]
 use async_trait::async_trait;
-use embedded_hal::digital::v2::OutputPin;
-use embedded_hal::timer::CountDown;
+use embedded_hal::{digital::v2::OutputPin, timer::CountDown};
 
-use crate::bus::Read;
-use crate::sd::command::Command;
-use crate::sd::data;
-use crate::sd::registers::CSD;
-use crate::sd::BLOCK_SIZE;
+use crate::{
+    bus::Read,
+    sd::{command::Command, data, registers::CSD, BLOCK_SIZE},
+};
 
-use super::bus::{AsyncSPI, BUSError, Bus, Error};
+use super::bus::{BUSError, Bus, Error, Transfer};
 
 impl<E, F, SPI, CS, C> Bus<SPI, CS, C>
 where
-    SPI: AsyncSPI<Error = E> + Send,
+    SPI: Transfer<Error = E> + Send,
     CS: OutputPin<Error = F> + Send,
     C: CountDown<Time = Duration> + Send,
 {
+    #[deasync::deasync]
     pub(crate) async fn read_block(&mut self, block: &mut [u8]) -> Result<(), BUSError<E, F>> {
         self.countdown.start(Duration::from_millis(100));
         let token = loop {
@@ -47,10 +46,11 @@ where
     }
 }
 
-#[async_trait]
+#[cfg_attr(feature = "async", async_trait)]
+#[deasync::deasync]
 impl<E, F, SPI, CS, C> Read for Bus<SPI, CS, C>
 where
-    SPI: AsyncSPI<Error = E> + Send,
+    SPI: Transfer<Error = E> + Send,
     CS: OutputPin<Error = F> + Send,
     C: CountDown<Time = Duration> + Send,
 {

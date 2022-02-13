@@ -7,8 +7,7 @@ pub mod delay;
 mod sd;
 
 use bus::Error;
-use sd::registers::CSD;
-use sd::BLOCK_SIZE;
+use sd::{registers::CSD, BLOCK_SIZE};
 
 pub struct SD<BUS> {
     bus: BUS,
@@ -18,6 +17,7 @@ pub struct SD<BUS> {
 
 type LBA = usize;
 
+#[deasync::deasync]
 impl<E, BUS> SD<BUS>
 where
     BUS: bus::Read<Error = E> + bus::Write<Error = E> + bus::Bus<Error = E>,

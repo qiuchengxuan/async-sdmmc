@@ -6,7 +6,7 @@ edition = "2021"
 repository = "https://github.com/qiuchengxuan/async-sdmmc"
 
 [dependencies]
-async-embedded-sdmmc = { path = ".." }
+async-embedded-sdmmc = { path = "..", features = ["async"]}
 async-std = "1.0"
 async-trait = "0.1"
 clap = "2"

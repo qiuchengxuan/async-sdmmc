@@ -1,13 +1,17 @@
+#[cfg(feature = "async")]
 use alloc::boxed::Box;
-use core::slice;
-use core::time::Duration;
+use core::{slice, time::Duration};
 
+#[cfg(feature = "async")]
 use async_trait::async_trait;
-use embedded_hal::digital::v2::OutputPin;
-use embedded_hal::timer::CountDown;
+#[cfg(not(feature = "async"))]
+use embedded_hal::blocking::spi;
+use embedded_hal::{digital::v2::OutputPin, timer::CountDown};
 
-use crate::sd::command::{AppCommand, Command};
-use crate::sd::response::{self, Response};
+use crate::sd::{
+    command::{AppCommand, Command},
+    response::{self, Response},
+};
 
 use crate::bus;
 
@@ -19,10 +23,21 @@ pub enum Error<SPI, CS> {
 
 pub type BUSError<SPI, CS> = bus::Error<Error<SPI, CS>>;
 
-#[async_trait]
-pub trait AsyncSPI {
+#[cfg_attr(feature = "async", async_trait)]
+#[deasync::deasync]
+pub trait Transfer {
     type Error;
-    async fn trx(&mut self, tx: &[u8], rx: &mut [u8]) -> Result<(), Self::Error>;
+    async fn transfer(&mut self, tx: &[u8], rx: &mut [u8]) -> Result<(), Self::Error>;
+}
+
+#[cfg(not(feature = "async"))]
+impl<E, T: spi::Transfer<u8, Error = E>> Transfer for T {
+    type Error = E;
+
+    fn transfer(&mut self, tx: &[u8], rx: &mut [u8]) -> Result<(), Self::Error> {
+        rx.copy_from_slice(tx);
+        self.transfer(rx).map(|_| ())
+    }
 }
 
 pub struct Bus<SPI, CS, C> {
@@ -31,30 +46,37 @@ pub struct Bus<SPI, CS, C> {
     pub(crate) countdown: C,
 }
 
-impl<E, F, SPI, CS, C> Bus<SPI, CS, C>
+impl<E, SPI, CS, C> Bus<SPI, CS, C>
 where
-    SPI: AsyncSPI<Error = E>,
-    CS: OutputPin<Error = F>,
+    CS: OutputPin<Error = E>,
     C: CountDown<Time = Duration>,
 {
     pub fn new(spi: SPI, cs: CS, countdown: C) -> Self {
         Self { spi, cs, countdown }
     }
 
-    pub(crate) fn select(&mut self) -> Result<(), BUSError<E, F>> {
+    pub(crate) fn select<T>(&mut self) -> Result<(), BUSError<T, E>> {
         self.cs.set_low().map_err(|e| BUSError::BUS(Error::CS(e)))
     }
 
-    pub(crate) fn deselect(&mut self) -> Result<(), BUSError<E, F>> {
+    pub(crate) fn deselect<T>(&mut self) -> Result<(), BUSError<T, E>> {
         self.cs.set_high().map_err(|e| BUSError::BUS(Error::CS(e)))
     }
+}
 
+#[deasync::deasync]
+impl<E, F, SPI, CS, C> Bus<SPI, CS, C>
+where
+    SPI: Transfer<Error = E>,
+    CS: OutputPin<Error = F>,
+    C: CountDown<Time = Duration>,
+{
     pub(crate) async fn tx(&mut self, bytes: &[u8]) -> Result<(), BUSError<E, F>> {
-        self.spi.trx(bytes, &mut []).await.map_err(|e| BUSError::BUS(Error::SPI(e)))
+        self.spi.transfer(bytes, &mut []).await.map_err(|e| BUSError::BUS(Error::SPI(e)))
     }
 
     pub(crate) async fn rx(&mut self, buffer: &mut [u8]) -> Result<(), BUSError<E, F>> {
-        self.spi.trx(&[], buffer).await.map_err(|e| BUSError::BUS(Error::SPI(e)))
+        self.spi.transfer(&[], buffer).await.map_err(|e| BUSError::BUS(Error::SPI(e)))
     }
 
     pub(crate) async fn wait(&mut self, timeout: Duration) -> Result<(), BUSError<E, F>> {
@@ -114,7 +136,7 @@ where
 
 impl<E, F, SPI, CS, C> bus::Bus for Bus<SPI, CS, C>
 where
-    SPI: AsyncSPI<Error = E>,
+    SPI: Transfer<Error = E>,
     CS: OutputPin<Error = F>,
     C: CountDown<Time = Duration>,
 {

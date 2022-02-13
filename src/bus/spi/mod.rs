@@ -4,23 +4,27 @@ pub mod write;
 
 use core::time::Duration;
 
-use embedded_hal::digital::v2::OutputPin;
-use embedded_hal::timer::CountDown;
+use embedded_hal::{digital::v2::OutputPin, timer::CountDown};
 
-use crate::delay::AsyncDelay;
-use crate::sd::command::{AppCommand, Command, SendInterfaceCondition};
-use crate::sd::response::{self, R1Status};
-use crate::sd::Card;
-pub use bus::{AsyncSPI, BUSError, Bus};
+use crate::{
+    delay::Delay,
+    sd::{
+        command::{AppCommand, Command, SendInterfaceCondition},
+        response::{self, R1Status},
+        Card,
+    },
+};
+pub use bus::{BUSError, Bus, Transfer};
 
 impl<E, F, SPI, CS, C> Bus<SPI, CS, C>
 where
-    SPI: AsyncSPI<Error = E> + Send,
+    SPI: Transfer<Error = E> + Send,
     CS: OutputPin<Error = F> + Send,
     C: CountDown<Time = Duration> + Send,
 {
     /// Before init, set SPI clock rate between 100KHZ and 400KHZ
-    pub async fn init(&mut self, mut delay: impl AsyncDelay) -> Result<Card, BUSError<E, F>> {
+    #[deasync::deasync]
+    pub async fn init(&mut self, mut delay: impl Delay<u8>) -> Result<Card, BUSError<E, F>> {
         // Supply minimum of 74 clock cycles without CS asserted.
         self.deselect()?;
         self.tx(&[0xFF; 10]).await?;
@@ -37,7 +41,7 @@ where
                 Err(BUSError::NoResponse | BUSError::Command(_)) => attempts -= 1,
                 Err(e) => return Err(e),
             }
-            delay.delay(Duration::from_millis(10)).await;
+            delay.delay_ms(10).await;
         }
         if attempts == 0 {
             return Err(BUSError::NoResponse);
@@ -59,7 +63,7 @@ where
             if !r1.has(R1Status::InIdleState) {
                 break;
             }
-            delay.delay(Duration::from_millis(10)).await;
+            delay.delay_ms(10).await;
         }
         if r1.has(R1Status::InIdleState) {
             return Err(BUSError::Generic);

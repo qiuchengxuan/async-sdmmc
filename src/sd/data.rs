@@ -21,6 +21,7 @@ pub enum Token {
 
 impl TryFrom<u8> for Token {
     type Error = Error;
+
     fn try_from(byte: u8) -> Result<Token, Error> {
         match (byte, byte ^ (byte & byte.wrapping_sub(1))) {
             (0xFE, _) => Ok(Token::Start),
