@@ -16,7 +16,6 @@ bitfield = "0.13"
 embedded-hal = "0.2"
 deasync = "0.1"
 nb = "1.0"
-void = "1.0"
 
 [dev-dependencies]
 hex-literal = "0.3"

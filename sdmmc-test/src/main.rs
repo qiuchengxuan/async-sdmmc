@@ -3,26 +3,22 @@ extern crate spidev;
 use std::{future, io, thread, time};
 
 use async_std::task;
-use clap::{App, Arg};
+use clap::Parser;
 use gpio::{sysfs::SysFsGpioOutput, GpioOut};
 use mbr_nostd::{MasterBootRecord, PartitionTable};
 use sdmmc::{bus::spi, SD};
 use spidev::{SpiModeFlags, Spidev, SpidevOptions, SpidevTransfer};
 
-fn parse_args() -> Result<(String, u16), String> {
-    let matches = App::new("sdmmc")
-        .version("0.1.0")
-        .arg(Arg::with_name("spi").long("spi").takes_value(true).help("Specify SPI device"))
-        .arg(
-            Arg::with_name("cs")
-                .long("cs")
-                .takes_value(true)
-                .help("Specify chip-select GPIO number"),
-        )
-        .get_matches();
-    let spi = matches.value_of("spi").ok_or("SPI must be specified")?;
-    let cs = matches.value_of("cs").ok_or("CS must be specified")?;
-    Ok((spi.into(), cs.parse().map_err(|_| "CS not a number")?))
+#[derive(Parser, Debug)]
+#[clap(author, version, about, long_about = None)]
+struct Args {
+    /// Specify SPI device
+    #[clap(short, long, value_parser)]
+    spi: String,
+
+    /// Specify chip-select GPIO number
+    #[clap(short, long, value_parser)]
+    cs: u16,
 }
 
 struct AsyncSPI(Spidev);
@@ -101,9 +97,9 @@ impl<UXX: Into<u64>> sdmmc::delay::Delay<UXX> for Delay {
 }
 
 fn run() -> Result<(), String> {
-    let (spi, cs) = parse_args()?;
-    let spi = spidev(&spi).map_err(|e| e.to_string())?;
-    let cs = gpio::sysfs::SysFsGpioOutput::open(cs).map_err(|e| e.to_string())?;
+    let args = Args::parse();
+    let spi = spidev(&args.spi).map_err(|e| e.to_string())?;
+    let cs = gpio::sysfs::SysFsGpioOutput::open(args.cs).map_err(|e| e.to_string())?;
     let mut spi = spi::Bus::new(AsyncSPI(spi), GPIO(cs), CountDown::default());
     let card = task::block_on(spi.init(Delay)).map_err(|e| format!("{:?}", e))?;
     println!("Card: {:?}", card);
