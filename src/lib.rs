@@ -1,6 +1,38 @@
+//! # sdmmc
+//!
+//! > A sdmmc implementation mainly focusing on embedded system with `no_std` and `async` support
+//!
+//! ## Using this crate
+//!
+//! Assuming you already have `SPI` struct which implements `sdmmc::spi::Transfer`
+//!
+//! ```rust
+//! let spi = spidev("/dev/spidev0.0").map_err(|e| e.to_string())?;
+//! let cs = gpio::sysfs::SysFsGpioOutput::open(22).map_err(|e| e.to_string())?;
+//! let mut spi = spi::Bus::new(SPI(spi), GPIO(cs), CountDown::default());
+//! let card = spi.init(Delay).await.map_err(|e| format!("{:?}", e))?;
+//! debug!("Card: {:?}", card);
+//! let mut sd = SD::init(spi, card).await.map_err(|e| format!("{:?}", e))?;
+//! let size = Size::from_bytes(sd.num_blocks() as u64 * sd.block_size() as u64);
+//! debug!("Size {}", size);
+//!
+//! let options = SpidevOptions { max_speed_hz: Some(2_000_000), ..Default::default() };
+//! sd.bus(|bus| bus.spi(|spi| spi.0.configure(&options))).unwrap();
+//!
+//! let mut buffer = [0u8; 512];
+//! sd.read(0, slice::from_mut(&mut buffer).iter_mut()).await.map_err(|e| format!("{:?}", e))?;
+//! let mbr = MasterBootRecord::from_bytes(&buffer).map_err(|e| format!("{:?}", e))?;
+//! for partition in mbr.partition_table_entries().iter() {
+//!     println!("{:?}", partition);
+//! }
+//! Ok(())
+//! ```
+
 #![cfg_attr(not(any(test, feature = "std")), no_std)]
 
 extern crate alloc;
+#[macro_use]
+extern crate log;
 
 pub mod bus;
 pub mod delay;
@@ -17,7 +49,7 @@ pub struct SD<BUS> {
 
 type LBA = usize;
 
-#[deasync::deasync]
+#[cfg_attr(not(feature = "async"), deasync::deasync)]
 impl<E, BUS> SD<BUS>
 where
     BUS: bus::Read<Error = E> + bus::Write<Error = E> + bus::Bus<Error = E>,
@@ -33,31 +65,41 @@ where
         self.csd
     }
 
-    pub async fn read(&mut self, address: LBA, mut buffer: &mut [u8]) -> Result<usize, Error<E>> {
-        let len = buffer.len() / BLOCK_SIZE * BLOCK_SIZE;
-        if len == 0 {
-            return Ok(0);
-        }
-        self.bus.before()?;
-        buffer = &mut buffer[..len];
-        let address = if self.card.high_capacity() { address } else { address * BLOCK_SIZE };
-        let result = self.bus.read(address as u32, buffer).await;
-        self.bus.after().and(result).map(|_| len)
+    pub fn bus<R>(&mut self, f: impl Fn(&mut BUS) -> R) -> R {
+        f(&mut self.bus)
     }
 
-    pub async fn write(&mut self, address: LBA, mut bytes: &[u8]) -> Result<usize, Error<E>> {
-        let len = bytes.len() / BLOCK_SIZE * BLOCK_SIZE;
-        if len == 0 {
-            return Ok(0);
+    pub async fn read<'a, B>(&mut self, address: LBA, blocks: B) -> Result<(), Error<E>>
+    where
+        B: core::iter::ExactSizeIterator<Item = &'a mut [u8; BLOCK_SIZE]> + Send,
+    {
+        if blocks.len() == 0 {
+            return Ok(());
         }
-        bytes = &bytes[..len];
+        self.bus.before()?;
+        let address = if self.card.high_capacity() { address } else { address * BLOCK_SIZE };
+        let result = self.bus.read(address as u32, blocks).await;
+        self.bus.after().and(result)
+    }
+
+    pub async fn write<'a, B>(&mut self, address: LBA, blocks: B) -> Result<(), Error<E>>
+    where
+        B: core::iter::ExactSizeIterator<Item = &'a [u8; BLOCK_SIZE]> + Send,
+    {
+        if blocks.len() == 0 {
+            return Ok(());
+        }
         let address = if self.card.high_capacity() { address } else { address * BLOCK_SIZE };
         self.bus.before()?;
-        let result = self.bus.write(address as u32, bytes).await;
-        self.bus.after().and(result).map(|_| len)
+        let result = self.bus.write(address as u32, blocks).await;
+        self.bus.after().and(result)
     }
 
     pub fn num_blocks(&self) -> usize {
         self.csd.num_blocks()
+    }
+
+    pub fn block_size(&self) -> usize {
+        self.csd.block_size()
     }
 }

@@ -65,4 +65,12 @@ impl CSD {
             Self::V3(csd) => csd.num_blocks(),
         }
     }
+
+    pub fn block_size(&self) -> usize {
+        match self {
+            Self::V1(_) => 512,
+            Self::V2(_) => 512 * 1024,
+            Self::V3(_) => 512 * 1024,
+        }
+    }
 }

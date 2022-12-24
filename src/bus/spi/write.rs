@@ -1,20 +1,22 @@
 #[cfg(feature = "async")]
 use alloc::boxed::Box;
-use core::{slice, time::Duration};
+use core::slice;
+#[cfg(not(feature = "fugit"))]
+use core::time::Duration;
 
-#[cfg(feature = "async")]
-use async_trait::async_trait;
 use embedded_hal::{digital::v2::OutputPin, timer::CountDown};
+#[cfg(feature = "fugit")]
+use fugit::NanosDurationU32 as Duration;
 
 use crate::{
     bus::Write,
     sd::{command::Command, data, BLOCK_SIZE},
 };
 
-use super::bus::{BUSError, Bus, Error, Transfer};
+use super::bus::{millis, BUSError, Bus, Error, Transfer};
 
-#[cfg_attr(feature = "async", async_trait)]
-#[deasync::deasync]
+#[cfg_attr(feature = "async", async_trait::async_trait)]
+#[cfg_attr(not(feature = "async"), deasync::deasync)]
 impl<E, F, SPI, CS, C> Write for Bus<SPI, CS, C>
 where
     SPI: Transfer<Error = E> + Send,
@@ -23,18 +25,21 @@ where
 {
     type Error = Error<E, F>;
 
-    async fn write(&mut self, address: u32, bytes: &[u8]) -> Result<(), BUSError<E, F>> {
+    async fn write<'a, B>(&mut self, address: u32, blocks: B) -> Result<(), BUSError<E, F>>
+    where
+        B: core::iter::ExactSizeIterator<Item = &'a [u8; BLOCK_SIZE]> + Send,
+    {
         self.tx(&[0xFF; 5]).await?;
         self.select()?;
-        let (cmd, token) = if bytes.len() == BLOCK_SIZE {
-            (Command::WriteBlock(address), data::Token::Start)
-        } else {
-            (Command::WriteMultipleBlock(address), data::Token::StartWriteMultipleBlock)
+        let num_blocks = blocks.len();
+        let (cmd, token) = match num_blocks {
+            1 => (Command::WriteBlock(address), data::Token::Start),
+            _ => (Command::WriteMultipleBlock(address), data::Token::StartWriteMultipleBlock),
         };
         self.send_command(cmd).await?;
-        for chunk in bytes.chunks(BLOCK_SIZE) {
+        for block in blocks {
             self.tx(&[token as u8]).await?;
-            self.tx(chunk).await?;
+            self.tx(block).await?;
             let crc = [0u8; 2];
             self.tx(&crc).await?;
             let mut byte = 0u8;
@@ -44,11 +49,11 @@ where
                 Some(_) => return Err(BUSError::Transfer(data::Error::Generic)),
                 None => return Err(BUSError::Generic),
             }
-            self.wait(Duration::from_millis(250)).await?;
+            self.wait(millis(250)).await?;
         }
-        if bytes.len() > BLOCK_SIZE {
+        if num_blocks > 1 {
             self.tx(&[data::Token::Stop as u8, 0xFF]).await?;
-            self.wait(Duration::from_millis(250)).await?;
+            self.wait(millis(250)).await?;
         }
         self.deselect()?;
         self.tx(&[0xFF]).await?; // Extra byte to release MISO

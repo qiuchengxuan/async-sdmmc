@@ -1,24 +1,27 @@
 [package]
 name = "async-embedded-sdmmc"
-description = "Async version of embedded sdmmc driver"
+description = "Embedded sdmmc driver with async support"
 license = "MIT OR Apache-2.0"
-version = "0.1.0"
+version = "0.1.2"
 authors = ["qiuchengxuan <qiuchengxuan@gmail.com>"]
 edition = "2021"
 repository = "https://github.com/qiuchengxuan/async-sdmmc"
-
-[features]
-async = ["deasync/bypass"]
 
 [dependencies]
 async-trait = "0.1"
 bitfield = "0.13"
 embedded-hal = "0.2"
+fugit = { version = "0.3", optional = true }
 deasync = "0.1"
+log = "0.4"
 nb = "1.0"
 
 [dev-dependencies]
 hex-literal = "0.3"
+
+[features]
+async = []
+log-max-level-off = ["log/max_level_off", "log/release_max_level_off"]
 
 [lib]
 name = "sdmmc"

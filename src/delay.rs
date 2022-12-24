@@ -12,3 +12,6 @@ pub trait Delay<UXX> {
 
 #[cfg(not(feature = "async"))]
 pub trait Delay<UXX>: DelayMs<UXX> {}
+
+#[cfg(not(feature = "async"))]
+impl<UXX, T: DelayMs<UXX>> Delay<UXX> for T {}

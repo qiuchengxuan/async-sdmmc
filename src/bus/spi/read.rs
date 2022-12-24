@@ -1,17 +1,19 @@
 #[cfg(feature = "async")]
 use alloc::boxed::Box;
-use core::{convert::TryFrom, slice, time::Duration};
+#[cfg(not(feature = "fugit"))]
+use core::time::Duration;
+use core::{convert::TryFrom, slice};
 
-#[cfg(feature = "async")]
-use async_trait::async_trait;
 use embedded_hal::{digital::v2::OutputPin, timer::CountDown};
+#[cfg(feature = "fugit")]
+use fugit::NanosDurationU32 as Duration;
 
 use crate::{
     bus::Read,
     sd::{command::Command, data, registers::CSD, BLOCK_SIZE},
 };
 
-use super::bus::{BUSError, Bus, Error, Transfer};
+use super::bus::{millis, BUSError, Bus, Error, Transfer};
 
 impl<E, F, SPI, CS, C> Bus<SPI, CS, C>
 where
@@ -19,9 +21,9 @@ where
     CS: OutputPin<Error = F> + Send,
     C: CountDown<Time = Duration> + Send,
 {
-    #[deasync::deasync]
+    #[cfg_attr(not(feature = "async"), deasync::deasync)]
     pub(crate) async fn read_block(&mut self, block: &mut [u8]) -> Result<(), BUSError<E, F>> {
-        self.countdown.start(Duration::from_millis(100));
+        self.countdown.start(millis(100));
         let token = loop {
             if self.countdown.wait().is_ok() {
                 return Err(BUSError::Timeout);
@@ -46,8 +48,8 @@ where
     }
 }
 
-#[cfg_attr(feature = "async", async_trait)]
-#[deasync::deasync]
+#[cfg_attr(feature = "async", async_trait::async_trait)]
+#[cfg_attr(not(feature = "async"), deasync::deasync)]
 impl<E, F, SPI, CS, C> Read for Bus<SPI, CS, C>
 where
     SPI: Transfer<Error = E> + Send,
@@ -67,21 +69,24 @@ where
         CSD::try_from(u128::from_be_bytes(buffer)).ok_or(BUSError::Generic)
     }
 
-    async fn read(&mut self, address: u32, output: &mut [u8]) -> Result<(), BUSError<E, F>> {
+    async fn read<'a, B>(&mut self, address: u32, blocks: B) -> Result<(), BUSError<E, F>>
+    where
+        B: core::iter::ExactSizeIterator<Item = &'a mut [u8; BLOCK_SIZE]> + Send,
+    {
         self.tx(&[0xFF; 5]).await?;
         self.select()?;
-        let cmd = if output.len() <= BLOCK_SIZE {
-            Command::ReadSingleBlock(address)
-        } else {
-            Command::ReadMultipleBlock(address)
+        let num_blocks = blocks.len();
+        let cmd = match num_blocks {
+            1 => Command::ReadSingleBlock(address),
+            _ => Command::ReadMultipleBlock(address),
         };
         self.send_command(cmd).await?;
-        for chunk in output.chunks_mut(BLOCK_SIZE) {
-            self.read_block(chunk).await?;
+        for block in blocks {
+            self.read_block(block).await?;
         }
-        if output.len() > BLOCK_SIZE {
+        if num_blocks > 1 {
             self.send_command(Command::StopTransmission).await?;
-            self.wait(Duration::from_millis(100)).await?;
+            self.wait(millis(100)).await?;
         }
         self.deselect()?;
         self.tx(&[0xFF]).await // Extra byte to release MISO

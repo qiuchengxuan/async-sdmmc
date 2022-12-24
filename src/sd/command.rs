@@ -134,7 +134,7 @@ fn crc7(data: &[u8]) -> u8 {
             }
         }
     }
-    (crc << 1) | 1
+    crc << 1 | 1
 }
 
 impl Into<[u8; 6]> for Command {

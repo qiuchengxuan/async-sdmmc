@@ -1,12 +1,14 @@
 #[cfg(feature = "async")]
 use alloc::boxed::Box;
-use core::{slice, time::Duration};
+use core::slice;
+#[cfg(not(feature = "fugit"))]
+use core::time::Duration;
 
-#[cfg(feature = "async")]
-use async_trait::async_trait;
 #[cfg(not(feature = "async"))]
 use embedded_hal::blocking::spi;
 use embedded_hal::{digital::v2::OutputPin, timer::CountDown};
+#[cfg(feature = "fugit")]
+use fugit::NanosDurationU32 as Duration;
 
 use crate::sd::{
     command::{AppCommand, Command},
@@ -23,8 +25,8 @@ pub enum Error<SPI, CS> {
 
 pub type BUSError<SPI, CS> = bus::Error<Error<SPI, CS>>;
 
-#[cfg_attr(feature = "async", async_trait)]
-#[deasync::deasync]
+#[cfg_attr(feature = "async", async_trait::async_trait)]
+#[cfg_attr(not(feature = "async"), deasync::deasync)]
 pub trait Transfer {
     type Error;
     async fn transfer(&mut self, tx: &[u8], rx: &mut [u8]) -> Result<(), Self::Error>;
@@ -55,6 +57,10 @@ where
         Self { spi, cs, countdown }
     }
 
+    pub fn spi<R>(&mut self, f: impl Fn(&mut SPI) -> R) -> R {
+        f(&mut self.spi)
+    }
+
     pub(crate) fn select<T>(&mut self) -> Result<(), BUSError<T, E>> {
         self.cs.set_low().map_err(|e| BUSError::BUS(Error::CS(e)))
     }
@@ -64,7 +70,7 @@ where
     }
 }
 
-#[deasync::deasync]
+#[cfg_attr(not(feature = "async"), deasync::deasync)]
 impl<E, F, SPI, CS, C> Bus<SPI, CS, C>
 where
     SPI: Transfer<Error = E>,
@@ -93,6 +99,7 @@ where
 
     pub(crate) async fn send_command(&mut self, cmd: Command) -> Result<Response, BUSError<E, F>> {
         let bytes: [u8; 6] = cmd.into();
+        trace!("Send CMD {:?} bytes {:X?}", cmd, &bytes);
         self.tx(&bytes[..]).await?;
 
         if cmd == Command::StopTransmission {
@@ -101,7 +108,7 @@ where
 
         // Skip Ncr, 0~8 bytes for SDC, 1~8 bytes for MMC
         let mut r1 = response::R1::default();
-        for _ in 0..8 {
+        for _ in 0..=8 {
             self.rx(slice::from_mut(&mut r1.0)).await?;
             if r1.valid() {
                 break;
@@ -148,5 +155,14 @@ where
 
     fn after(&mut self) -> Result<(), BUSError<E, F>> {
         self.deselect()
+    }
+}
+
+pub(crate) fn millis(millis: u32) -> Duration {
+    match () {
+        #[cfg(not(feature = "fugit"))]
+        () => Duration::from_millis(millis as u64),
+        #[cfg(feature = "fugit")]
+        () => Duration::millis(millis),
     }
 }

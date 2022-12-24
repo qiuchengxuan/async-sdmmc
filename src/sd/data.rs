@@ -11,7 +11,7 @@ pub enum Error {
     CardLocked,
 }
 
-#[derive(Copy, Clone, PartialEq)]
+#[derive(Copy, Clone, Debug, PartialEq)]
 #[repr(u8)]
 pub enum Token {
     Start = 0xFE,

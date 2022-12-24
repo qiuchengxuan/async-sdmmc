@@ -1,15 +1,13 @@
 #[cfg(feature = "async")]
 use alloc::boxed::Box;
 
-#[cfg(feature = "async")]
-use async_trait::async_trait;
-
-use crate::sd::{data, registers::CSD, response::R1Status};
+use crate::sd::{data, registers::CSD, response::R1Status, BLOCK_SIZE};
 
 #[derive(Debug)]
 pub enum Error<BUS> {
     BUS(BUS),
     NoResponse,            // Probably no card
+    NotIdle,               // Not idle
     Command(R1Status),     // Command related error
     Transfer(data::Error), // R/W error
     Timeout,               // No respond within expected duration
@@ -22,19 +20,23 @@ pub trait Bus {
     fn after(&mut self) -> Result<(), Error<Self::Error>>;
 }
 
-#[cfg_attr(feature = "async", async_trait)]
-#[deasync::deasync]
+#[cfg_attr(feature = "async", async_trait::async_trait)]
+#[cfg_attr(not(feature = "async"), deasync::deasync)]
 pub trait Read {
     type Error;
     async fn read_csd(&mut self) -> Result<CSD, Error<Self::Error>>;
-    async fn read(&mut self, block: u32, buffer: &mut [u8]) -> Result<(), Error<Self::Error>>;
+    async fn read<'a, B>(&mut self, block: u32, blocks: B) -> Result<(), Error<Self::Error>>
+    where
+        B: core::iter::ExactSizeIterator<Item = &'a mut [u8; BLOCK_SIZE]> + Send;
 }
 
-#[cfg_attr(feature = "async", async_trait)]
-#[deasync::deasync]
+#[cfg_attr(feature = "async", async_trait::async_trait)]
+#[cfg_attr(not(feature = "async"), deasync::deasync)]
 pub trait Write {
     type Error;
-    async fn write(&mut self, block: u32, buffer: &[u8]) -> Result<(), Error<Self::Error>>;
+    async fn write<'a, B>(&mut self, block: u32, blocks: B) -> Result<(), Error<Self::Error>>
+    where
+        B: core::iter::ExactSizeIterator<Item = &'a [u8; BLOCK_SIZE]> + Send;
 }
 
 pub mod spi;
