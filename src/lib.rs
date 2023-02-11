@@ -7,10 +7,8 @@
 //! Assuming you already have `SPI` struct which implements `sdmmc::spi::Transfer`
 //!
 //! ```rust
-//! let spi = spidev("/dev/spidev0.0").map_err(|e| e.to_string())?;
-//! let cs = gpio::sysfs::SysFsGpioOutput::open(22).map_err(|e| e.to_string())?;
-//! let mut spi = spi::Bus::new(SPI(spi), GPIO(cs), CountDown::default());
-//! let card = spi.init(Delay).await.map_err(|e| format!("{:?}", e))?;
+//! let mut bus = sdmmc::bus::linux::spi(&args.spi, args.cs).map_err(|e| format!("{:?}", e))?;
+//! let card = bus.init(Delay).await.map_err(|e| format!("{:?}", e))?;
 //! debug!("Card: {:?}", card);
 //! let mut sd = SD::init(spi, card).await.map_err(|e| format!("{:?}", e))?;
 //! let size = Size::from_bytes(sd.num_blocks() as u64 * sd.block_size() as u64);
@@ -33,12 +31,15 @@
 extern crate alloc;
 #[macro_use]
 extern crate log;
+#[cfg(feature = "spidev")]
+extern crate spidev;
 
 pub mod bus;
 pub mod delay;
 mod sd;
 
 use bus::Error;
+pub use sd::registers::NumBlocks;
 use sd::{registers::CSD, BLOCK_SIZE};
 
 pub struct SD<BUS> {
@@ -47,7 +48,7 @@ pub struct SD<BUS> {
     csd: CSD,
 }
 
-type LBA = usize;
+type LBA = u32;
 
 #[cfg_attr(not(feature = "async"), deasync::deasync)]
 impl<E, BUS> SD<BUS>
@@ -77,8 +78,8 @@ where
             return Ok(());
         }
         self.bus.before()?;
-        let address = if self.card.high_capacity() { address } else { address * BLOCK_SIZE };
-        let result = self.bus.read(address as u32, blocks).await;
+        let address = if self.card.high_capacity() { address } else { address * BLOCK_SIZE as u32 };
+        let result = self.bus.read(address, blocks).await;
         self.bus.after().and(result)
     }
 
@@ -89,17 +90,17 @@ where
         if blocks.len() == 0 {
             return Ok(());
         }
-        let address = if self.card.high_capacity() { address } else { address * BLOCK_SIZE };
+        let address = if self.card.high_capacity() { address } else { address * BLOCK_SIZE as u32 };
         self.bus.before()?;
-        let result = self.bus.write(address as u32, blocks).await;
+        let result = self.bus.write(address, blocks).await;
         self.bus.after().and(result)
     }
 
-    pub fn num_blocks(&self) -> usize {
+    pub fn num_blocks(&self) -> NumBlocks {
         self.csd.num_blocks()
     }
 
-    pub fn block_size(&self) -> usize {
-        self.csd.block_size()
+    pub fn block_size_shift(&self) -> u8 {
+        self.csd.block_size_shift()
     }
 }

@@ -1,17 +1,34 @@
+#[cfg(feature = "linux-spi")]
+pub mod linux;
+pub mod spi;
+
 #[cfg(feature = "async")]
 use alloc::boxed::Box;
 
-use crate::sd::{data, registers::CSD, response::R1Status, BLOCK_SIZE};
+use crate::sd::{registers::CSD, response::R1Status, transfer, BLOCK_SIZE};
 
 #[derive(Debug)]
 pub enum Error<BUS> {
+    /// Bus error
     BUS(BUS),
-    NoResponse,            // Probably no card
-    NotIdle,               // Not idle
-    Command(R1Status),     // Command related error
-    Transfer(data::Error), // R/W error
-    Timeout,               // No respond within expected duration
-    Generic,               // Unexpected error
+    /// Probably no card
+    NoResponse,
+    /// Not idle
+    NotIdle,
+    /// Command related error
+    Command(R1Status),
+    /// Tranfer error
+    Transfer(transfer::TokenError),
+    /// No respond within expected duration
+    Timeout,
+    /// Unexpected error
+    Generic,
+}
+
+impl<BUS> From<BUS> for Error<BUS> {
+    fn from(error: BUS) -> Self {
+        Self::BUS(error)
+    }
 }
 
 pub trait Bus {
@@ -38,5 +55,3 @@ pub trait Write {
     where
         B: core::iter::ExactSizeIterator<Item = &'a [u8; BLOCK_SIZE]> + Send;
 }
-
-pub mod spi;

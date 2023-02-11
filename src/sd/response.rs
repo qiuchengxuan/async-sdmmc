@@ -10,8 +10,8 @@ impl Default for R1 {
     }
 }
 
-#[repr(u8)]
 #[derive(Copy, Clone, Debug)]
+#[repr(u8)]
 pub enum R1Status {
     InIdleState = 0,
     IllegalCommand,

@@ -1,7 +1,7 @@
 pub mod command;
-pub mod data;
 pub mod registers;
 pub mod response;
+pub mod transfer;
 
 pub const BLOCK_SIZE: usize = 512;
 

@@ -10,7 +10,11 @@ use fugit::NanosDurationU32 as Duration;
 
 use crate::{
     bus::Write,
-    sd::{command::Command, data, BLOCK_SIZE},
+    sd::{
+        command::Command,
+        transfer::{Response, Token, TokenError},
+        BLOCK_SIZE,
+    },
 };
 
 use super::bus::{millis, BUSError, Bus, Error, Transfer};
@@ -33,8 +37,8 @@ where
         self.select()?;
         let num_blocks = blocks.len();
         let (cmd, token) = match num_blocks {
-            1 => (Command::WriteBlock(address), data::Token::Start),
-            _ => (Command::WriteMultipleBlock(address), data::Token::StartWriteMultipleBlock),
+            1 => (Command::WriteBlock(address), Token::Start),
+            _ => (Command::WriteMultipleBlock(address), Token::StartWriteMultipleBlock),
         };
         self.send_command(cmd).await?;
         for block in blocks {
@@ -44,15 +48,15 @@ where
             self.tx(&crc).await?;
             let mut byte = 0u8;
             self.rx(slice::from_mut(&mut byte)).await?;
-            match data::Response::try_from(byte) {
-                Some(data::Response::Accepted) => (),
-                Some(_) => return Err(BUSError::Transfer(data::Error::Generic)),
+            match Response::try_from(byte) {
+                Some(Response::Accepted) => (),
+                Some(_) => return Err(BUSError::Transfer(TokenError::Generic)),
                 None => return Err(BUSError::Generic),
             }
             self.wait(millis(250)).await?;
         }
         if num_blocks > 1 {
-            self.tx(&[data::Token::Stop as u8, 0xFF]).await?;
+            self.tx(&[Token::Stop as u8, 0xFF]).await?;
             self.wait(millis(250)).await?;
         }
         self.deselect()?;

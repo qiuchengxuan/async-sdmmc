@@ -1,8 +1,5 @@
-use core::convert::TryFrom;
-
 #[derive(Copy, Clone, Debug)]
-#[repr(u8)]
-pub enum Error {
+pub enum TokenError {
     NotToken,
     Generic,
     CC,
@@ -20,18 +17,18 @@ pub enum Token {
 }
 
 impl TryFrom<u8> for Token {
-    type Error = Error;
+    type Error = TokenError;
 
-    fn try_from(byte: u8) -> Result<Token, Error> {
+    fn try_from(byte: u8) -> Result<Token, TokenError> {
         match (byte, byte ^ (byte & byte.wrapping_sub(1))) {
             (0xFE, _) => Ok(Token::Start),
             (0xFC, _) => Ok(Token::StartWriteMultipleBlock),
-            (_, 0x10) => Err(Error::CardLocked),
-            (_, 0x8) => Err(Error::OutOfRange),
-            (_, 0x4) => Err(Error::CardECC),
-            (_, 0x2) => Err(Error::CC),
-            (_, 0x1) => Err(Error::Generic),
-            (_, _) => Err(Error::NotToken),
+            (_, 0x10) => Err(TokenError::CardLocked),
+            (_, 0x8) => Err(TokenError::OutOfRange),
+            (_, 0x4) => Err(TokenError::CardECC),
+            (_, 0x2) => Err(TokenError::CC),
+            (_, 0x1) => Err(TokenError::Generic),
+            (_, _) => Err(TokenError::NotToken),
         }
     }
 }

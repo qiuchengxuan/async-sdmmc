@@ -9,10 +9,36 @@ bitfield! {
     pub device_size_multiplier, _: 49, 47;
 }
 
+#[derive(Copy, Clone, Debug)]
+pub struct NumBlocks {
+    device_size: u32,
+    multiplier: u16,
+}
+
+impl NumBlocks {
+    pub fn device_size(&self) -> u32 {
+        self.device_size
+    }
+
+    pub fn multiplier(&self) -> u16 {
+        self.multiplier
+    }
+}
+
+impl Into<u64> for NumBlocks {
+    fn into(self) -> u64 {
+        self.device_size as u64 * self.multiplier as u64
+    }
+}
+
 impl CSDv1 {
-    pub fn num_blocks(&self) -> usize {
-        let multi = 1 << (self.device_size_multiplier() + 1);
-        (self.device_size() as usize + 1) * multi * self.max_read_data_block_length() as usize / 512
+    pub fn num_blocks(&self) -> NumBlocks {
+        let multiplier = 1 << (self.device_size_multiplier() + 1);
+        NumBlocks { device_size: self.device_size() as u32 + 1, multiplier }
+    }
+
+    pub fn read_block_size_shift(&self) -> u8 {
+        self.max_read_data_block_length() as u8
     }
 }
 
@@ -23,8 +49,8 @@ bitfield! {
 }
 
 impl CSDv2 {
-    pub fn num_blocks(&self) -> usize {
-        self.device_size() as usize + 1
+    pub fn num_blocks(&self) -> NumBlocks {
+        NumBlocks { device_size: (self.device_size() as u32 + 1), multiplier: 1024 }
     }
 }
 
@@ -35,8 +61,8 @@ bitfield! {
 }
 
 impl CSDv3 {
-    pub fn num_blocks(&self) -> usize {
-        self.device_size() as usize + 1
+    pub fn num_blocks(&self) -> NumBlocks {
+        NumBlocks { device_size: (self.device_size() as u32 + 1), multiplier: 1024 }
     }
 }
 
@@ -58,7 +84,7 @@ impl CSD {
         Some(csd)
     }
 
-    pub fn num_blocks(&self) -> usize {
+    pub fn num_blocks(&self) -> NumBlocks {
         match self {
             Self::V1(csd) => csd.num_blocks(),
             Self::V2(csd) => csd.num_blocks(),
@@ -66,11 +92,10 @@ impl CSD {
         }
     }
 
-    pub fn block_size(&self) -> usize {
+    pub fn block_size_shift(&self) -> u8 {
         match self {
-            Self::V1(_) => 512,
-            Self::V2(_) => 512 * 1024,
-            Self::V3(_) => 512 * 1024,
+            Self::V1(csd) => csd.read_block_size_shift(),
+            _ => 9, // 512 bytes
         }
     }
 }

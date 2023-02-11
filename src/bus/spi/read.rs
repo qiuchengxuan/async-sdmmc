@@ -10,7 +10,12 @@ use fugit::NanosDurationU32 as Duration;
 
 use crate::{
     bus::Read,
-    sd::{command::Command, data, registers::CSD, BLOCK_SIZE},
+    sd::{
+        command::Command,
+        registers::CSD,
+        transfer::{Token, TokenError},
+        BLOCK_SIZE,
+    },
 };
 
 use super::bus::{millis, BUSError, Bus, Error, Transfer};
@@ -33,13 +38,13 @@ where
             if byte == 0xFF {
                 continue;
             }
-            match data::Token::try_from(byte) {
+            match Token::try_from(byte) {
                 Ok(token) => break token,
-                Err(data::Error::NotToken) => continue,
+                Err(TokenError::NotToken) => continue,
                 Err(e) => return Err(BUSError::Transfer(e)),
             }
         };
-        if token != data::Token::Start {
+        if token != Token::Start {
             return Err(BUSError::Generic);
         }
         self.rx(block).await?;
