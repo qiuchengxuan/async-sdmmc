@@ -1,4 +1,4 @@
-#[cfg(feature = "async")]
+#[cfg(feature = "async-trait")]
 use alloc::boxed::Box;
 use core::slice;
 #[cfg(not(feature = "fugit"))]
@@ -25,7 +25,7 @@ pub enum Error<SPI, CS> {
 
 pub type BUSError<SPI, CS> = bus::Error<Error<SPI, CS>>;
 
-#[cfg_attr(feature = "async", async_trait::async_trait)]
+#[cfg_attr(feature = "async-trait", async_trait::async_trait)]
 #[cfg_attr(not(feature = "async"), deasync::deasync)]
 pub trait Transfer {
     type Error;

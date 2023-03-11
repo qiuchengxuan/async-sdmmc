@@ -1,6 +1,8 @@
 #![doc = include_str!("../README.md")]
 #![cfg_attr(not(any(test, feature = "std")), no_std)]
+#![cfg_attr(all(feature = "async", not(feature = "async-trait")), feature(async_fn_in_trait))]
 
+#[cfg(feature = "async-trait")]
 extern crate alloc;
 #[macro_use]
 extern crate log;

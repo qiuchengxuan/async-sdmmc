@@ -8,7 +8,7 @@ edition = "2021"
 repository = "https://github.com/qiuchengxuan/async-sdmmc"
 
 [dependencies]
-async-trait = "0.1"
+async-trait = { version = "0.1", optional = true }
 bitfield = "0.13"
 deasync = "0.1"
 embedded-hal = "0.2"
