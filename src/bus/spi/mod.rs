@@ -1,9 +1,8 @@
-pub mod bus;
-pub mod read;
-pub mod write;
-
 #[cfg(not(feature = "fugit"))]
 use core::time::Duration;
+
+use embedded_hal_async::spi::{ErrorType, SpiDevice, SpiBus};
+use log::trace;
 
 use embedded_hal::{digital::v2::OutputPin, timer::CountDown};
 #[cfg(feature = "fugit")]
@@ -17,15 +16,21 @@ use crate::{
         Card,
     },
 };
-pub use bus::{BUSError, Bus, Transfer};
+pub use bus::Bus;
+
+use self::bus::BUSError;
+
+pub mod bus;
+pub mod read;
+pub mod write;
 
 impl<E, F, SPI, CS, C> Bus<SPI, CS, C>
 where
-    SPI: Transfer<Error = E> + Send,
+    SPI: SpiDevice + ErrorType<Error = E>,
+    SPI::Bus: SpiBus,
     CS: OutputPin<Error = F> + Send,
     C: CountDown<Time = Duration> + Send,
 {
-    #[cfg_attr(not(feature = "async"), deasync::deasync)]
     async fn go_idle(&mut self, delay: &mut impl Delay<u8>) -> Result<(), BUSError<E, F>> {
         // SD v1.0 won't be considered
         for _ in 0..32 {
@@ -43,7 +48,6 @@ where
     }
 
     /// Before init, set SPI clock rate between 100KHZ and 400KHZ
-    #[cfg_attr(not(feature = "async"), deasync::deasync)]
     pub async fn init(&mut self, mut delay: impl Delay<u8>) -> Result<Card, BUSError<E, F>> {
         // Supply minimum of 74 clock cycles without CS asserted.
         self.deselect()?;

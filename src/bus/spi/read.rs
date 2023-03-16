@@ -3,13 +3,17 @@ use alloc::boxed::Box;
 #[cfg(not(feature = "fugit"))]
 use core::time::Duration;
 use core::{convert::TryFrom, slice};
+use embedded_hal_async::spi::{ErrorType, SpiBus, SpiDevice};
 
 use embedded_hal::{digital::v2::OutputPin, timer::CountDown};
 #[cfg(feature = "fugit")]
 use fugit::NanosDurationU32 as Duration;
 
 use crate::{
-    bus::Read,
+    bus::{
+        spi::bus::{millis, BUSError, Bus, Error},
+        Read,
+    },
     sd::{
         command::Command,
         registers::CSD,
@@ -18,15 +22,13 @@ use crate::{
     },
 };
 
-use super::bus::{millis, BUSError, Bus, Error, Transfer};
-
 impl<E, F, SPI, CS, C> Bus<SPI, CS, C>
 where
-    SPI: Transfer<Error = E> + Send,
+    SPI: SpiDevice + ErrorType<Error = E>,
+    SPI::Bus: SpiBus,
     CS: OutputPin<Error = F> + Send,
     C: CountDown<Time = Duration> + Send,
 {
-    #[cfg_attr(not(feature = "async"), deasync::deasync)]
     pub(crate) async fn read_block(&mut self, block: &mut [u8]) -> Result<(), BUSError<E, F>> {
         self.countdown.start(millis(100));
         let token = loop {
@@ -53,17 +55,16 @@ where
     }
 }
 
-#[cfg_attr(feature = "async-trait", async_trait::async_trait)]
-#[cfg_attr(not(feature = "async"), deasync::deasync)]
 impl<E, F, SPI, CS, C> Read for Bus<SPI, CS, C>
 where
-    SPI: Transfer<Error = E> + Send,
+    SPI: SpiDevice + ErrorType<Error = E>,
+    SPI::Bus: SpiBus,
     CS: OutputPin<Error = F> + Send,
     C: CountDown<Time = Duration> + Send,
 {
     type Error = Error<E, F>;
 
-    async fn read_csd(&mut self) -> Result<CSD, BUSError<E, F>> {
+    async fn read_csd(&mut self) -> Result<CSD, crate::bus::Error<Self::Error>> {
         self.tx(&[0xFF; 5]).await?;
         self.select()?;
         self.send_command(Command::SendCSD(0)).await?;

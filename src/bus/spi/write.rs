@@ -1,15 +1,19 @@
-#[cfg(feature = "async-trait")]
-use alloc::boxed::Box;
 use core::slice;
 #[cfg(not(feature = "fugit"))]
 use core::time::Duration;
 
 use embedded_hal::{digital::v2::OutputPin, timer::CountDown};
+
+use embedded_hal_async::spi::{ErrorType, SpiBus, SpiDevice};
 #[cfg(feature = "fugit")]
 use fugit::NanosDurationU32 as Duration;
 
 use crate::{
-    bus::Write,
+    bus::{
+        self,
+        spi::bus::{millis, Bus, Error},
+        Write,
+    },
     sd::{
         command::Command,
         transfer::{Response, Token, TokenError},
@@ -17,19 +21,16 @@ use crate::{
     },
 };
 
-use super::bus::{millis, BUSError, Bus, Error, Transfer};
-
-#[cfg_attr(feature = "async-trait", async_trait::async_trait)]
-#[cfg_attr(not(feature = "async"), deasync::deasync)]
 impl<E, F, SPI, CS, C> Write for Bus<SPI, CS, C>
 where
-    SPI: Transfer<Error = E> + Send,
+    SPI: SpiDevice + ErrorType<Error = E>,
+    SPI::Bus: SpiBus,
     CS: OutputPin<Error = F> + Send,
     C: CountDown<Time = Duration> + Send,
 {
     type Error = Error<E, F>;
 
-    async fn write<'a, B>(&mut self, address: u32, blocks: B) -> Result<(), BUSError<E, F>>
+    async fn write<'a, B>(&mut self, address: u32, blocks: B) -> Result<(), bus::Error<Self::Error>>
     where
         B: core::iter::ExactSizeIterator<Item = &'a [u8; BLOCK_SIZE]> + Send,
     {
@@ -50,8 +51,8 @@ where
             self.rx(slice::from_mut(&mut byte)).await?;
             match Response::try_from(byte) {
                 Some(Response::Accepted) => (),
-                Some(_) => return Err(BUSError::Transfer(TokenError::Generic)),
-                None => return Err(BUSError::Generic),
+                Some(_) => return Err(bus::Error::Transfer(TokenError::Generic)),
+                None => return Err(bus::Error::Generic),
             }
             self.wait(millis(250)).await?;
         }

@@ -1,19 +1,14 @@
-#[macro_use]
-extern crate log;
-
-#[cfg(feature = "async")]
-use std::future;
 use std::slice;
 
-#[cfg(feature = "async")]
+use log::debug;
+
 use async_std::task;
 use clap::Parser;
 use mbr_nostd::{MasterBootRecord, PartitionTable};
-use sdmmc::delay::std::Delay;
-use sdmmc::SD;
 use size::Size;
 use spidev::SpidevOptions;
 
+use sdmmc::{delay::std::Delay, SD};
 #[derive(Parser, Debug)]
 #[clap(author, version, about, long_about = None)]
 struct Args {
@@ -28,7 +23,6 @@ struct Args {
     cs: u16,
 }
 
-#[cfg_attr(not(feature = "async"), deasync::deasync)]
 async fn run(args: &Args) -> Result<(), String> {
     let mut bus = sdmmc::bus::linux::spi(&args.spi, args.cs).map_err(|e| format!("{:?}", e))?;
     let card = bus.init(Delay).await.map_err(|e| format!("{:?}", e))?;
@@ -60,14 +54,9 @@ fn main() {
     };
     log::set_max_level(level);
     env_logger::builder().filter(None, level).target(env_logger::Target::Stdout).init();
-    let result = match () {
-        #[cfg(feature = "async")]
-        () => task::block_on(run(&args)),
-        #[cfg(not(feature = "async"))]
-        () => run(&args),
-    };
-    match result {
+
+    match task::block_on(run(&args)) {
         Ok(_) => (),
-        Err(e) => println!("{}", e),
-    };
+        Err(e) => eprintln!("{}", e),
+    }
 }

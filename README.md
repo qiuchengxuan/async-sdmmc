@@ -31,14 +31,6 @@ Ok(())
 Features
 --------
 
-* **async**
-
-  Enable async support
-
-* **async-trait**
-
-  Use async-trait, otherwise nightly unstable `async_fn_in_trait` feature is enabled
-
 * **std**
 
   Use std library

@@ -2,9 +2,6 @@
 pub mod linux;
 pub mod spi;
 
-#[cfg(feature = "async-trait")]
-use alloc::boxed::Box;
-
 use crate::sd::{registers::CSD, response::R1Status, transfer, BLOCK_SIZE};
 
 #[derive(Debug)]
@@ -17,7 +14,7 @@ pub enum Error<BUS> {
     NotIdle,
     /// Command related error
     Command(R1Status),
-    /// Tranfer error
+    /// Transfer error
     Transfer(transfer::TokenError),
     /// No respond within expected duration
     Timeout,
@@ -37,8 +34,6 @@ pub trait Bus {
     fn after(&mut self) -> Result<(), Error<Self::Error>>;
 }
 
-#[cfg_attr(feature = "async-trait", async_trait::async_trait)]
-#[cfg_attr(not(feature = "async"), deasync::deasync)]
 pub trait Read {
     type Error;
     async fn read_csd(&mut self) -> Result<CSD, Error<Self::Error>>;
@@ -47,10 +42,9 @@ pub trait Read {
         B: core::iter::ExactSizeIterator<Item = &'a mut [u8; BLOCK_SIZE]> + Send;
 }
 
-#[cfg_attr(feature = "async-trait", async_trait::async_trait)]
-#[cfg_attr(not(feature = "async"), deasync::deasync)]
 pub trait Write {
     type Error;
+
     async fn write<'a, B>(&mut self, block: u32, blocks: B) -> Result<(), Error<Self::Error>>
     where
         B: core::iter::ExactSizeIterator<Item = &'a [u8; BLOCK_SIZE]> + Send;

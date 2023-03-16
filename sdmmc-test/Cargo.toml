@@ -22,7 +22,6 @@ size = "0.4"
 spidev = "0.5"
 
 [features]
-async = ["async-embedded-sdmmc/async"]
 
 [[bin]]
 name = "sdmmc"

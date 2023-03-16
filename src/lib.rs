@@ -1,20 +1,21 @@
-#![doc = include_str!("../README.md")]
+// #![doc = include_str!("../README.md")]
 #![cfg_attr(not(any(test, feature = "std")), no_std)]
-#![cfg_attr(all(feature = "async", not(feature = "async-trait")), feature(async_fn_in_trait))]
+
+#![cfg(nightly)]
+
+#![feature(async_fn_in_trait)]
+#![allow(incomplete_features)]
 
 #[cfg(feature = "async-trait")]
 extern crate alloc;
-#[macro_use]
-extern crate log;
-#[cfg(feature = "spidev")]
-extern crate spidev;
 
 pub mod bus;
 pub mod delay;
 mod sd;
 
-use bus::Error;
 pub use sd::registers::NumBlocks;
+
+use bus::Error;
 use sd::{registers::CSD, BLOCK_SIZE};
 
 pub struct SD<BUS> {
@@ -25,7 +26,6 @@ pub struct SD<BUS> {
 
 type LBA = u32;
 
-#[cfg_attr(not(feature = "async"), deasync::deasync)]
 impl<E, BUS> SD<BUS>
 where
     BUS: bus::Read<Error = E> + bus::Write<Error = E> + bus::Bus<Error = E>,
