@@ -4,6 +4,8 @@ use core::slice;
 #[cfg(not(feature = "fugit"))]
 use core::time::Duration;
 
+use log::trace;
+
 #[cfg(not(feature = "async"))]
 use embedded_hal::blocking::spi;
 use embedded_hal::{digital::v2::OutputPin, timer::CountDown};
@@ -28,13 +30,13 @@ pub enum Error<SPI, CS> {
 pub type BUSError<SPI, CS> = bus::Error<Error<SPI, CS>>;
 
 #[cfg_attr(feature = "async-trait", async_trait::async_trait)]
-#[cfg_attr(not(feature = "async"), deasync::deasync)]
+#[cfg_attr(not(any(feature = "async", feature = "async-trait")), deasync::deasync)]
 pub trait Transfer {
     type Error;
     async fn transfer(&mut self, tx: &[u8], rx: &mut [u8]) -> Result<(), Self::Error>;
 }
 
-#[cfg(not(feature = "async"))]
+#[cfg(not(any(feature = "async", feature = "async-trait")))]
 impl<E, T: spi::Transfer<u8, Error = E>> Transfer for T {
     type Error = E;
 
@@ -86,7 +88,7 @@ where
     }
 }
 
-#[cfg_attr(not(feature = "async"), deasync::deasync)]
+#[cfg_attr(not(any(feature = "async", feature = "async-trait")), deasync::deasync)]
 impl<E, F, SPI, CS, C> Bus<SPI, CS, C>
 where
     SPI: Transfer<Error = E>,
