@@ -7,6 +7,8 @@ use core::time::Duration;
 #[cfg(not(feature = "async"))]
 use embedded_hal::blocking::spi;
 use embedded_hal::{digital::v2::OutputPin, timer::CountDown};
+#[cfg(all(feature = "async", feature = "embedded-hal-async"))]
+use embedded_hal_async::spi::SpiBus;
 #[cfg(feature = "fugit")]
 use fugit::NanosDurationU32 as Duration;
 
@@ -39,6 +41,20 @@ impl<E, T: spi::Transfer<u8, Error = E>> Transfer for T {
     fn transfer(&mut self, tx: &[u8], rx: &mut [u8]) -> Result<(), Self::Error> {
         rx.copy_from_slice(tx);
         self.transfer(rx).map(|_| ())
+    }
+}
+
+#[cfg(all(feature = "async", feature = "embedded-hal-async"))]
+impl<E, T: SpiBus<u8, Error = E>> Transfer for T {
+    type Error = E;
+
+    async fn transfer(&mut self, tx: &[u8], rx: &mut [u8]) -> Result<(), Self::Error> {
+        match (!tx.is_empty(), !rx.is_empty()) {
+            (true, true) => self.transfer(rx, tx).await,
+            (true, false) => self.read(rx).await,
+            (false, true) => self.write(tx).await,
+            _ => unreachable!(),
+        }
     }
 }
 

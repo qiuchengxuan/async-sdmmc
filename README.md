@@ -39,6 +39,10 @@ Features
 
   Use async-trait, otherwise nightly unstable `async_fn_in_trait` feature is enabled
 
+* **embedded-hal-async**
+
+  Enable embedded-hal-async support
+
 * **std**
 
   Use std library

@@ -17,7 +17,7 @@ pub enum Error<BUS> {
     NotIdle,
     /// Command related error
     Command(R1Status),
-    /// Tranfer error
+    /// Transfer error
     Transfer(transfer::TokenError),
     /// No respond within expected duration
     Timeout,
