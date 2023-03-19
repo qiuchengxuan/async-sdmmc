@@ -1,0 +1,73 @@
+on: [push, pull_request]
+
+# Stops the running workflow of previous pushes
+concurrency:
+  group: ${{ github.ref }}
+  cancel-in-progress: true
+
+name: Continuous Integration
+
+jobs:
+  lints:
+    name: Rustfmt & Clippy lints
+
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v3
+
+      # use nightly for rustfmt & clippy checks
+      - name: Install Rust nightly toolchain
+        uses: dtolnay/rust-toolchain@nightly
+        with:
+          components: rustfmt, clippy
+
+      - name: Rust format
+        run: cargo fmt --check
+
+      - name: Clippy lints
+        run: cargo clippy --no-deps -- -D warnings
+  
+  test:
+    name: Tests
+
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v3
+
+      - name: Install Rust toolchain
+        uses: dtolnay/rust-toolchain@stable
+        with:
+          components: rust-src
+
+      # turn off `async` & `async-trait`
+      - name: Test --no-default-features
+        run: cargo test --no-default-features
+
+      # will enable std & linux-spi
+      - name: Test --all-features
+        run: cargo test --all-features
+
+      # enable `async` only
+      # due to unstable feature - use `nightly`
+      - name: Test async (nightly)
+        run: cargo +nightly test --features=async
+
+  # Detect cases where documentation links don't resolve and such.
+  doc:
+    name: Docs check
+    runs-on: ubuntu-latest
+    env:
+      RUSTDOCFLAGS: "-D warnings"
+    steps:
+      - uses: actions/checkout@v3
+      # Docs.rs uses nightly, which allows for easier syntax for linking to functions.
+      - uses: dtolnay/rust-toolchain@nightly
+        with:
+          components: rust-docs
+
+      - name: Docs --all-features
+        run: cargo doc --all-features --no-deps
+
+      - name: Docs --no-default-features
+        run: cargo doc --no-default-features --no-deps
+  
