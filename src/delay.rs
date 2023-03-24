@@ -17,6 +17,7 @@ pub trait Delay<UXX>: DelayMs<UXX> {}
 impl<UXX, T: DelayMs<UXX>> Delay<UXX> for T {}
 
 #[cfg(feature = "std")]
+#[cfg_attr(docsrs, doc(cfg(feature = "std")))]
 pub mod std {
     pub struct Delay;
 

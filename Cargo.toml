@@ -33,3 +33,8 @@ async = []
 std = []
 linux-spi = ["std", "gpio", "void", "spidev"]
 log-max-level-off = ["log/max_level_off", "log/release_max_level_off"]
+
+[package.metadata.docs.rs]
+all-features = true
+# enable unstable features in the documentation
+rustdoc-args = ["--cfg", "docsrs"]
