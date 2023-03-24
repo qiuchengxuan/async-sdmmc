@@ -1,4 +1,5 @@
 #[cfg(feature = "linux-spi")]
+#[cfg_attr(docsrs, doc(cfg(feature = "linux-spi")))]
 pub mod linux;
 pub mod spi;
 

@@ -7,6 +7,9 @@ authors = ["qiuchengxuan <qiuchengxuan@gmail.com>"]
 edition = "2021"
 repository = "https://github.com/qiuchengxuan/async-sdmmc"
 
+[lib]
+name = "sdmmc"
+
 [dependencies]
 async-trait = { version = "0.1", optional = true }
 bitfield = "0.13"
@@ -24,11 +27,14 @@ void = { version = "1.0", optional = true }
 hex-literal = "0.3"
 
 [features]
+default = ["async", "async-trait"]
+
 async = []
 std = []
 linux-spi = ["std", "gpio", "void", "spidev"]
 log-max-level-off = ["log/max_level_off", "log/release_max_level_off"]
-default = ["async", "async-trait"]
 
-[lib]
-name = "sdmmc"
+[package.metadata.docs.rs]
+all-features = true
+# enable unstable features in the documentation
+rustdoc-args = ["--cfg", "docsrs"]

@@ -146,7 +146,9 @@ impl Into<[u8; 6]> for Command {
     }
 }
 
+#[cfg(test)]
 mod test {
+
     #[test]
     fn test_command_to_bytes() {
         use super::{AppCommand, Command};

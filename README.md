@@ -8,7 +8,7 @@ Using this crate
 
 Assuming you already have `SPI` struct which implements `sdmmc::spi::Transfer`
 
-```rust
+```rust,ignore
 let mut bus = sdmmc::bus::linux::spi(&args.spi, args.cs).map_err(|e| format!("{:?}", e))?;
 let card = bus.init(Delay).await.map_err(|e| format!("{:?}", e))?;
 debug!("Card: {:?}", card);
