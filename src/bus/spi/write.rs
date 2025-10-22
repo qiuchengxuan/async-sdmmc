@@ -1,12 +1,10 @@
-#[cfg(feature = "async-trait")]
+#[cfg(all(feature = "async", feature = "async-trait"))]
 use alloc::boxed::Box;
 use core::slice;
-#[cfg(not(feature = "fugit"))]
 use core::time::Duration;
 
-use embedded_hal::{digital::v2::OutputPin, timer::CountDown};
-#[cfg(feature = "fugit")]
-use fugit::NanosDurationU32 as Duration;
+use embedded_hal::digital::OutputPin;
+use embedded_timers::{clock::Clock, instant::Instant};
 
 use crate::{
     bus::Write,
@@ -17,15 +15,16 @@ use crate::{
     },
 };
 
-use super::bus::{millis, BUSError, Bus, Error, Transfer};
+use super::bus::{BUSError, Bus, Error, Transfer};
 
-#[cfg_attr(feature = "async-trait", async_trait::async_trait)]
+#[cfg_attr(all(feature = "async", feature = "async-trait"), async_trait::async_trait)]
 #[cfg_attr(not(feature = "async"), deasync::deasync)]
-impl<E, F, SPI, CS, C> Write for Bus<SPI, CS, C>
+impl<E, F, SPI, CS, C, I> Write for Bus<SPI, CS, C>
 where
     SPI: Transfer<Error = E> + Send,
     CS: OutputPin<Error = F> + Send,
-    C: CountDown<Time = Duration> + Send,
+    C: Clock<Instant = I> + Send,
+    I: Instant,
 {
     type Error = Error<E, F>;
 
@@ -53,11 +52,11 @@ where
                 Some(_) => return Err(BUSError::Transfer(TokenError::Generic)),
                 None => return Err(BUSError::Generic),
             }
-            self.wait(millis(250)).await?;
+            self.wait(Duration::from_millis(250)).await?;
         }
         if num_blocks > 1 {
             self.tx(&[Token::Stop as u8, 0xFF]).await?;
-            self.wait(millis(250)).await?;
+            self.wait(Duration::from_millis(250)).await?;
         }
         self.deselect()?;
         self.tx(&[0xFF]).await?; // Extra byte to release MISO

@@ -1,8 +1,6 @@
 #[macro_use]
 extern crate log;
 
-#[cfg(feature = "async")]
-use std::future;
 use std::slice;
 
 #[cfg(feature = "async")]

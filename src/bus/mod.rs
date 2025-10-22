@@ -2,7 +2,7 @@
 pub mod linux;
 pub mod spi;
 
-#[cfg(feature = "async-trait")]
+#[cfg(all(feature = "async", feature = "async-trait"))]
 use alloc::boxed::Box;
 
 use crate::sd::{registers::CSD, response::R1Status, transfer, BLOCK_SIZE};
@@ -37,7 +37,7 @@ pub trait Bus {
     fn after(&mut self) -> Result<(), Error<Self::Error>>;
 }
 
-#[cfg_attr(feature = "async-trait", async_trait::async_trait)]
+#[cfg_attr(all(feature = "async", feature = "async-trait"), async_trait::async_trait)]
 #[cfg_attr(not(feature = "async"), deasync::deasync)]
 pub trait Read {
     type Error;
@@ -47,7 +47,7 @@ pub trait Read {
         B: core::iter::ExactSizeIterator<Item = &'a mut [u8; BLOCK_SIZE]> + Send;
 }
 
-#[cfg_attr(feature = "async-trait", async_trait::async_trait)]
+#[cfg_attr(all(feature = "async", feature = "async-trait"), async_trait::async_trait)]
 #[cfg_attr(not(feature = "async"), deasync::deasync)]
 pub trait Write {
     type Error;

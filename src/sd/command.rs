@@ -28,18 +28,6 @@ impl Into<u32> for SendInterfaceCondition {
 pub type RCA = u16;
 pub type Address = u32;
 
-#[derive(Copy, Clone, Debug)]
-pub struct SendStatus {
-    pub rca: RCA,
-    pub send_task_status_register: bool,
-}
-
-impl Into<u32> for SendStatus {
-    fn into(self) -> u32 {
-        (self.rca as u32) << 16 | (self.send_task_status_register as u32) << 15
-    }
-}
-
 #[repr(u8)]
 #[derive(Copy, Clone, Debug, PartialEq)]
 pub enum AppCommand {

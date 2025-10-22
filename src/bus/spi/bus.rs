@@ -1,16 +1,14 @@
-#[cfg(feature = "async-trait")]
+#[cfg(all(feature = "async", feature = "async-trait"))]
 use alloc::boxed::Box;
 use core::slice;
-#[cfg(not(feature = "fugit"))]
 use core::time::Duration;
 
+use embedded_hal::digital::OutputPin;
 #[cfg(not(feature = "async"))]
-use embedded_hal::blocking::spi;
-use embedded_hal::{digital::v2::OutputPin, timer::CountDown};
+use embedded_hal::spi;
 #[cfg(all(feature = "async", feature = "embedded-hal-async"))]
 use embedded_hal_async::spi::SpiBus;
-#[cfg(feature = "fugit")]
-use fugit::NanosDurationU32 as Duration;
+use embedded_timers::{clock::Clock, instant::Instant};
 
 use crate::sd::{
     command::{AppCommand, Command},
@@ -27,7 +25,7 @@ pub enum Error<SPI, CS> {
 
 pub type BUSError<SPI, CS> = bus::Error<Error<SPI, CS>>;
 
-#[cfg_attr(feature = "async-trait", async_trait::async_trait)]
+#[cfg_attr(all(feature = "async", feature = "async-trait"), async_trait::async_trait)]
 #[cfg_attr(not(feature = "async"), deasync::deasync)]
 pub trait Transfer {
     type Error;
@@ -35,12 +33,11 @@ pub trait Transfer {
 }
 
 #[cfg(not(feature = "async"))]
-impl<E, T: spi::Transfer<u8, Error = E>> Transfer for T {
+impl<E, T: spi::SpiBus<u8, Error = E>> Transfer for T {
     type Error = E;
 
     fn transfer(&mut self, tx: &[u8], rx: &mut [u8]) -> Result<(), Self::Error> {
-        rx.copy_from_slice(tx);
-        self.transfer(rx).map(|_| ())
+        self.transfer(rx, tx).map(|_| ())
     }
 }
 
@@ -61,16 +58,16 @@ impl<E, T: SpiBus<u8, Error = E>> Transfer for T {
 pub struct Bus<SPI, CS, C> {
     spi: SPI,
     cs: CS,
-    pub(crate) countdown: C,
+    pub(crate) clock: C,
 }
 
-impl<E, SPI, CS, C> Bus<SPI, CS, C>
+impl<E, SPI, CS, C, I> Bus<SPI, CS, C>
 where
     CS: OutputPin<Error = E>,
-    C: CountDown<Time = Duration>,
+    C: Clock<Instant = I>,
 {
-    pub fn new(spi: SPI, cs: CS, countdown: C) -> Self {
-        Self { spi, cs, countdown }
+    pub fn new(spi: SPI, cs: CS, clock: C) -> Self {
+        Self { spi, cs, clock }
     }
 
     pub fn spi<R>(&mut self, f: impl Fn(&mut SPI) -> R) -> R {
@@ -87,11 +84,12 @@ where
 }
 
 #[cfg_attr(not(feature = "async"), deasync::deasync)]
-impl<E, F, SPI, CS, C> Bus<SPI, CS, C>
+impl<E, F, SPI, CS, C, I> Bus<SPI, CS, C>
 where
     SPI: Transfer<Error = E>,
     CS: OutputPin<Error = F>,
-    C: CountDown<Time = Duration>,
+    C: Clock<Instant = I>,
+    I: Instant,
 {
     pub(crate) async fn tx(&mut self, bytes: &[u8]) -> Result<(), BUSError<E, F>> {
         self.spi.transfer(bytes, &mut []).await.map_err(|e| BUSError::BUS(Error::SPI(e)))
@@ -102,13 +100,14 @@ where
     }
 
     pub(crate) async fn wait(&mut self, timeout: Duration) -> Result<(), BUSError<E, F>> {
-        self.countdown.start(timeout);
+        let deadline = self.clock.now() + timeout;
         let mut byte = 0u8;
         while byte != 0xFFu8 {
-            if self.countdown.wait().is_ok() {
+            if self.clock.now() > deadline {
                 return Err(BUSError::Timeout);
             }
-            self.rx(slice::from_mut(&mut byte)).await?;
+            let buf = slice::from_mut(&mut byte);
+            self.spi.transfer(&[], buf).await.map_err(|e| BUSError::BUS(Error::SPI(e)))?;
         }
         Ok(())
     }
@@ -157,11 +156,12 @@ where
     }
 }
 
-impl<E, F, SPI, CS, C> bus::Bus for Bus<SPI, CS, C>
+impl<E, F, SPI, CS, C, I> bus::Bus for Bus<SPI, CS, C>
 where
     SPI: Transfer<Error = E>,
     CS: OutputPin<Error = F>,
-    C: CountDown<Time = Duration>,
+    C: Clock<Instant = I>,
+    I: Instant,
 {
     type Error = Error<E, F>;
 
@@ -171,14 +171,5 @@ where
 
     fn after(&mut self) -> Result<(), BUSError<E, F>> {
         self.deselect()
-    }
-}
-
-pub(crate) fn millis(millis: u32) -> Duration {
-    match () {
-        #[cfg(not(feature = "fugit"))]
-        () => Duration::from_millis(millis as u64),
-        #[cfg(feature = "fugit")]
-        () => Duration::millis(millis),
     }
 }

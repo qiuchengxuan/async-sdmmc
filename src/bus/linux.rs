@@ -1,5 +1,6 @@
 use std::{io, time};
 
+use derive_more::Display;
 use gpio::{sysfs::SysFsGpioOutput, GpioOut};
 use spidev::{SpiModeFlags, Spidev, SpidevOptions, SpidevTransfer};
 
@@ -7,7 +8,7 @@ use crate::bus::spi;
 
 pub struct SPI(pub Spidev);
 
-#[cfg_attr(feature = "async-trait", async_trait::async_trait)]
+#[cfg_attr(all(feature = "async", feature = "async-trait"), async_trait::async_trait)]
 #[cfg_attr(not(feature = "async"), deasync::deasync)]
 impl spi::Transfer for SPI {
     type Error = io::Error;
@@ -26,56 +27,52 @@ impl spi::Transfer for SPI {
 
 pub struct GPIO(SysFsGpioOutput);
 
-impl embedded_hal::digital::v2::OutputPin for GPIO {
-    type Error = io::Error;
+#[derive(Debug, Display)]
+pub struct IOError(io::Error);
 
-    fn set_high(&mut self) -> io::Result<()> {
-        self.0.set_value(true)
+impl embedded_hal::digital::Error for IOError {
+    fn kind(&self) -> embedded_hal::digital::ErrorKind {
+        embedded_hal::digital::ErrorKind::Other
+    }
+}
+
+impl embedded_hal::digital::ErrorType for GPIO {
+    type Error = IOError;
+}
+
+impl embedded_hal::digital::OutputPin for GPIO {
+    fn set_high(&mut self) -> Result<(), IOError> {
+        self.0.set_value(true).map_err(|e| IOError(e))
     }
 
-    fn set_low(&mut self) -> io::Result<()> {
-        self.0.set_value(false)
+    fn set_low(&mut self) -> Result<(), IOError> {
+        self.0.set_value(false).map_err(|e| IOError(e))
     }
 }
 
 impl SPI {
     pub fn new(spi: &str) -> io::Result<Self> {
         let mut spi = Spidev::open(spi)?;
-        let options = SpidevOptions::new()
-            .bits_per_word(8)
-            .max_speed_hz(200_000)
-            .mode(SpiModeFlags::SPI_MODE_0)
-            .build();
-        spi.configure(&options)?;
+        let mode = SpiModeFlags::SPI_MODE_0;
+        let mut builder = SpidevOptions::new();
+        spi.configure(&builder.bits_per_word(8).max_speed_hz(200_000).mode(mode).build())?;
         Ok(Self(spi))
     }
 }
 
-pub struct CountDown(time::Instant);
+pub struct SystemClock {}
 
-impl Default for CountDown {
-    fn default() -> Self {
-        Self(time::Instant::now())
+impl embedded_timers::clock::Clock for SystemClock {
+    type Instant = embedded_timers::instant::TimespecInstant;
+
+    fn now(&self) -> Self::Instant {
+        let now = time::SystemTime::now().duration_since(time::UNIX_EPOCH).unwrap_or_default();
+        embedded_timers::instant::TimespecInstant::new(now.as_secs() as u32, now.subsec_nanos())
     }
 }
 
-impl embedded_hal::timer::CountDown for CountDown {
-    type Time = core::time::Duration;
-
-    fn start<T: Into<core::time::Duration>>(&mut self, duration: T) {
-        self.0 = time::Instant::now() + duration.into();
-    }
-
-    fn wait(&mut self) -> nb::Result<(), void::Void> {
-        match time::Instant::now() > self.0 {
-            true => Ok(()),
-            false => Err(nb::Error::WouldBlock),
-        }
-    }
-}
-
-pub fn spi(spi: &str, cs: u16) -> io::Result<spi::Bus<SPI, GPIO, CountDown>> {
+pub fn spi(spi: &str, cs: u16) -> io::Result<spi::Bus<SPI, GPIO, SystemClock>> {
     let spi = SPI::new(spi)?;
     let cs = gpio::sysfs::SysFsGpioOutput::open(cs)?;
-    Ok(spi::Bus::new(spi, GPIO(cs), CountDown::default()))
+    Ok(spi::Bus::new(spi, GPIO(cs), SystemClock {}))
 }

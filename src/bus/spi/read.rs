@@ -1,12 +1,10 @@
-#[cfg(feature = "async-trait")]
+#[cfg(all(feature = "async", feature = "async-trait"))]
 use alloc::boxed::Box;
-#[cfg(not(feature = "fugit"))]
 use core::time::Duration;
 use core::{convert::TryFrom, slice};
 
-use embedded_hal::{digital::v2::OutputPin, timer::CountDown};
-#[cfg(feature = "fugit")]
-use fugit::NanosDurationU32 as Duration;
+use embedded_hal::digital::OutputPin;
+use embedded_timers::{clock::Clock, instant::Instant};
 
 use crate::{
     bus::Read,
@@ -18,19 +16,20 @@ use crate::{
     },
 };
 
-use super::bus::{millis, BUSError, Bus, Error, Transfer};
+use super::bus::{BUSError, Bus, Error, Transfer};
 
-impl<E, F, SPI, CS, C> Bus<SPI, CS, C>
+impl<E, F, SPI, CS, C, I> Bus<SPI, CS, C>
 where
     SPI: Transfer<Error = E> + Send,
     CS: OutputPin<Error = F> + Send,
-    C: CountDown<Time = Duration> + Send,
+    C: Clock<Instant = I> + Send,
+    I: Instant,
 {
     #[cfg_attr(not(feature = "async"), deasync::deasync)]
     pub(crate) async fn read_block(&mut self, block: &mut [u8]) -> Result<(), BUSError<E, F>> {
-        self.countdown.start(millis(100));
+        let deadline = self.clock.now() + Duration::from_millis(100);
         let token = loop {
-            if self.countdown.wait().is_ok() {
+            if self.clock.now() > deadline {
                 return Err(BUSError::Timeout);
             }
             let mut byte = 0u8;
@@ -53,13 +52,14 @@ where
     }
 }
 
-#[cfg_attr(feature = "async-trait", async_trait::async_trait)]
+#[cfg_attr(all(feature = "async", feature = "async-trait"), async_trait::async_trait)]
 #[cfg_attr(not(feature = "async"), deasync::deasync)]
-impl<E, F, SPI, CS, C> Read for Bus<SPI, CS, C>
+impl<E, F, SPI, CS, C, I> Read for Bus<SPI, CS, C>
 where
     SPI: Transfer<Error = E> + Send,
     CS: OutputPin<Error = F> + Send,
-    C: CountDown<Time = Duration> + Send,
+    C: Clock<Instant = I> + Send,
+    I: Instant,
 {
     type Error = Error<E, F>;
 
@@ -91,7 +91,7 @@ where
         }
         if num_blocks > 1 {
             self.send_command(Command::StopTransmission).await?;
-            self.wait(millis(100)).await?;
+            self.wait(Duration::from_millis(100)).await?;
         }
         self.deselect()?;
         self.tx(&[0xFF]).await // Extra byte to release MISO

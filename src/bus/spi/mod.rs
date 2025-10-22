@@ -2,12 +2,8 @@ pub mod bus;
 pub mod read;
 pub mod write;
 
-#[cfg(not(feature = "fugit"))]
-use core::time::Duration;
-
-use embedded_hal::{digital::v2::OutputPin, timer::CountDown};
-#[cfg(feature = "fugit")]
-use fugit::NanosDurationU32 as Duration;
+use embedded_hal::digital::OutputPin;
+use embedded_timers::{clock::Clock, instant::Instant};
 
 use crate::{
     delay::Delay,
@@ -19,14 +15,15 @@ use crate::{
 };
 pub use bus::{BUSError, Bus, Transfer};
 
-impl<E, F, SPI, CS, C> Bus<SPI, CS, C>
+impl<E, F, SPI, CS, C, I> Bus<SPI, CS, C>
 where
     SPI: Transfer<Error = E> + Send,
     CS: OutputPin<Error = F> + Send,
-    C: CountDown<Time = Duration> + Send,
+    C: Clock<Instant = I> + Send,
+    I: Instant,
 {
     #[cfg_attr(not(feature = "async"), deasync::deasync)]
-    async fn go_idle(&mut self, delay: &mut impl Delay<u8>) -> Result<(), BUSError<E, F>> {
+    async fn go_idle(&mut self, delay: &mut impl Delay) -> Result<(), BUSError<E, F>> {
         // SD v1.0 won't be considered
         for _ in 0..32 {
             match self.send_command(Command::GoIdleState).await {
@@ -44,7 +41,7 @@ where
 
     /// Before init, set SPI clock rate between 100KHZ and 400KHZ
     #[cfg_attr(not(feature = "async"), deasync::deasync)]
-    pub async fn init(&mut self, mut delay: impl Delay<u8>) -> Result<Card, BUSError<E, F>> {
+    pub async fn init(&mut self, mut delay: impl Delay) -> Result<Card, BUSError<E, F>> {
         // Supply minimum of 74 clock cycles without CS asserted.
         self.deselect()?;
         trace!("Supply 74 clock cycles");
