@@ -1,12 +1,22 @@
-#[derive(Copy, Clone, Debug)]
+use displaydoc::Display;
+
+#[derive(Copy, Clone, Debug, Display)]
 pub enum TokenError {
+    /// not token
     NotToken,
+    /// generic
     Generic,
+    /// card controller
     CC,
+    /// card ECC
     CardECC,
+    /// out of range
     OutOfRange,
+    /// card locked
     CardLocked,
 }
+
+impl core::error::Error for TokenError {}
 
 #[derive(Copy, Clone, Debug, PartialEq)]
 #[repr(u8)]

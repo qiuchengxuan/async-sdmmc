@@ -5,30 +5,29 @@ pub mod spi;
 #[cfg(all(feature = "async", feature = "async-trait"))]
 use alloc::boxed::Box;
 
+use derive_more::Display;
+use thiserror::Error;
+
 use crate::sd::{registers::CSD, response::R1Status, transfer, BLOCK_SIZE};
 
-#[derive(Debug)]
+#[derive(Debug, Error, Display)]
 pub enum Error<BUS> {
-    /// Bus error
+    #[display("bus error: {_0}")]
     BUS(BUS),
     /// Probably no card
+    #[display("no response")]
     NoResponse,
-    /// Not idle
+    #[display("not idle")]
     NotIdle,
-    /// Command related error
-    Command(R1Status),
-    /// Transfer error
-    Transfer(transfer::TokenError),
+    #[display("command error: {_0}")]
+    Command(#[from] R1Status),
+    #[display("transfer error: {_0}")]
+    Transfer(#[from] transfer::TokenError),
     /// No respond within expected duration
+    #[display("timeout error")]
     Timeout,
-    /// Unexpected error
+    #[display("generic error")]
     Generic,
-}
-
-impl<BUS> From<BUS> for Error<BUS> {
-    fn from(error: BUS) -> Self {
-        Self::BUS(error)
-    }
 }
 
 pub trait Bus {

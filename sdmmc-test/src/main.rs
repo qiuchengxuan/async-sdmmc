@@ -27,11 +27,11 @@ struct Args {
 }
 
 #[cfg_attr(not(feature = "async"), deasync::deasync)]
-async fn run(args: &Args) -> Result<(), String> {
-    let mut bus = sdmmc::bus::linux::spi(&args.spi, args.cs).map_err(|e| format!("{:?}", e))?;
-    let card = bus.init(Delay).await.map_err(|e| format!("{:?}", e))?;
+async fn run(args: &Args) -> Result<(), Box<dyn std::error::Error>> {
+    let mut bus = sdmmc::bus::linux::spi(&args.spi, args.cs)?;
+    let card = bus.init(Delay).await?;
     debug!("Card: {:?}", card);
-    let mut sd = SD::init(bus, card).await.map_err(|e| format!("{:?}", e))?;
+    let mut sd = SD::init(bus, card).await?;
     let num_blocks: u64 = sd.num_blocks().into();
     let size = Size::from_bytes(num_blocks * (1 << sd.block_size_shift()));
     debug!("Size {}", size);
@@ -40,7 +40,7 @@ async fn run(args: &Args) -> Result<(), String> {
     sd.bus(|bus| bus.spi(|spi| spi.0.configure(&options))).unwrap();
 
     let mut buffer = [0u8; 512];
-    sd.read(0, slice::from_mut(&mut buffer).iter_mut()).await.map_err(|e| format!("{:?}", e))?;
+    sd.read(0, slice::from_mut(&mut buffer).iter_mut()).await?;
     let mbr = MasterBootRecord::from_bytes(&buffer).map_err(|e| format!("{:?}", e))?;
     for partition in mbr.partition_table_entries().iter() {
         println!("{:?}", partition);

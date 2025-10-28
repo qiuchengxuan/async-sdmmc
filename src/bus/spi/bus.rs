@@ -3,6 +3,7 @@ use alloc::boxed::Box;
 use core::slice;
 use core::time::Duration;
 
+use derive_more::Display;
 use embedded_hal::digital::OutputPin;
 #[cfg(not(feature = "async"))]
 use embedded_hal::spi;
@@ -17,11 +18,15 @@ use crate::sd::{
 
 use crate::bus;
 
-#[derive(Debug)]
+#[derive(Debug, Display)]
 pub enum Error<SPI, CS> {
+    #[display("spi error: {_0}")]
     SPI(SPI),
+    #[display("chip select error: {_0}")]
     CS(CS),
 }
+
+impl<SPI: core::error::Error, CS: core::error::Error> core::error::Error for Error<SPI, CS> {}
 
 pub type BUSError<SPI, CS> = bus::Error<Error<SPI, CS>>;
 

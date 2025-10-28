@@ -3,6 +3,7 @@ use std::{io, time};
 use derive_more::Display;
 use gpio::{sysfs::SysFsGpioOutput, GpioOut};
 use spidev::{SpiModeFlags, Spidev, SpidevOptions, SpidevTransfer};
+use thiserror::Error;
 
 use crate::bus::spi;
 
@@ -27,8 +28,8 @@ impl spi::Transfer for SPI {
 
 pub struct GPIO(SysFsGpioOutput);
 
-#[derive(Debug, Display)]
-pub struct IOError(io::Error);
+#[derive(Debug, Display, Error)]
+pub struct IOError(#[from] io::Error);
 
 impl embedded_hal::digital::Error for IOError {
     fn kind(&self) -> embedded_hal::digital::ErrorKind {
@@ -42,11 +43,11 @@ impl embedded_hal::digital::ErrorType for GPIO {
 
 impl embedded_hal::digital::OutputPin for GPIO {
     fn set_high(&mut self) -> Result<(), IOError> {
-        self.0.set_value(true).map_err(|e| IOError(e))
+        Ok(self.0.set_value(true)?)
     }
 
     fn set_low(&mut self) -> Result<(), IOError> {
-        self.0.set_value(false).map_err(|e| IOError(e))
+        Ok(self.0.set_value(false)?)
     }
 }
 

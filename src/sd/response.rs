@@ -1,4 +1,5 @@
 use bitfield::Bit;
+use displaydoc::Display;
 
 #[derive(Copy, Clone, Debug)]
 #[repr(C)]
@@ -10,16 +11,24 @@ impl Default for R1 {
     }
 }
 
-#[derive(Copy, Clone, Debug)]
+#[derive(Copy, Clone, Debug, Display)]
 #[repr(u8)]
 pub enum R1Status {
+    /// in idle state
     InIdleState = 0,
+    /// illegal command
     IllegalCommand,
+    /// command CRC error
     CommandCRCError,
+    /// erase sequence error
     EraseSequenceError,
+    /// address error
     AddressError,
+    /// parameter error
     ParameterError,
 }
+
+impl core::error::Error for R1Status {}
 
 impl R1 {
     pub fn valid(self) -> bool {
