@@ -2,7 +2,7 @@
 name = "async-embedded-sdmmc"
 description = "Embedded sdmmc driver with async support"
 license = "MIT OR Apache-2.0"
-version = "0.2.3"
+version = "0.2.4"
 authors = ["qiuchengxuan <qiuchengxuan@gmail.com>"]
 edition = "2024"
 repository = "https://github.com/qiuchengxuan/async-sdmmc"
@@ -17,7 +17,7 @@ embedded-hal = "1.0"
 embedded-hal-async = { version = "1.0", optional = true }
 embedded-timers = "0.4.0"
 gpio = { version = "0.4", optional = true }
-log = "0.4"
+log = { version = "0.4", optional = true }
 nb = "1.0"
 spidev = { version = "0.7", optional = true }
 thiserror = { version = "2.0.17", default-features = false }
@@ -30,7 +30,7 @@ hex-literal = "0.3"
 async = ["async-trait"]
 std = ["thiserror/std"]
 linux-spi = ["std", "gpio", "void", "spidev"]
-log-max-level-off = ["log/max_level_off", "log/release_max_level_off"]
+logging = ["dep:log"]
 default = ["async", "async-trait"]
 derive_more = []
 

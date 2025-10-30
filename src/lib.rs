@@ -4,10 +4,20 @@
 
 #[cfg(all(feature = "async", feature = "async-trait"))]
 extern crate alloc;
+#[cfg(feature = "logging")]
 #[macro_use]
 extern crate log;
 #[cfg(feature = "spidev")]
 extern crate spidev;
+
+#[cfg(not(feature = "logging"))]
+#[macro_use]
+mod logging {
+    #[macro_export]
+    macro_rules! trace {
+        ($($arg:tt)*) => { _ = ($($arg)*) };
+    }
+}
 
 pub mod bus;
 pub mod delay;
