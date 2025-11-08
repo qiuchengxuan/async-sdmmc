@@ -2,9 +2,6 @@
 pub mod linux;
 pub mod spi;
 
-#[cfg(all(feature = "async", feature = "async-trait"))]
-use alloc::boxed::Box;
-
 use derive_more::Display;
 use thiserror::Error;
 
@@ -36,21 +33,39 @@ pub trait Bus {
     fn after(&mut self) -> Result<(), Error<Self::Error>>;
 }
 
-#[cfg_attr(all(feature = "async", feature = "async-trait"), async_trait::async_trait)]
-#[cfg_attr(not(feature = "async"), deasync::deasync)]
 pub trait Read {
     type Error;
-    async fn read_csd(&mut self) -> Result<CSD, Error<Self::Error>>;
-    async fn read<'a, B>(&mut self, block: u32, blocks: B) -> Result<(), Error<Self::Error>>
+    #[cfg(not(feature = "async"))]
+    fn read_csd(&mut self) -> Result<CSD, Error<Self::Error>>;
+    #[cfg(not(feature = "async"))]
+    fn read<'a, B>(&mut self, block: u32, blocks: B) -> Result<(), Error<Self::Error>>
+    where
+        B: core::iter::ExactSizeIterator<Item = &'a mut [u8; BLOCK_SIZE]> + Send;
+
+    #[cfg(feature = "async")]
+    fn read_csd(&mut self) -> impl Future<Output = Result<CSD, Error<Self::Error>>>;
+    #[cfg(feature = "async")]
+    fn read<'a, B>(
+        &mut self,
+        block: u32,
+        blocks: B,
+    ) -> impl Future<Output = Result<(), Error<Self::Error>>>
     where
         B: core::iter::ExactSizeIterator<Item = &'a mut [u8; BLOCK_SIZE]> + Send;
 }
 
-#[cfg_attr(all(feature = "async", feature = "async-trait"), async_trait::async_trait)]
-#[cfg_attr(not(feature = "async"), deasync::deasync)]
 pub trait Write {
     type Error;
-    async fn write<'a, B>(&mut self, block: u32, blocks: B) -> Result<(), Error<Self::Error>>
+    #[cfg(not(feature = "async"))]
+    fn write<'a, B>(&mut self, block: u32, blocks: B) -> Result<(), Error<Self::Error>>
+    where
+        B: core::iter::ExactSizeIterator<Item = &'a [u8; BLOCK_SIZE]> + Send;
+    #[cfg(feature = "async")]
+    fn write<'a, B>(
+        &mut self,
+        block: u32,
+        blocks: B,
+    ) -> impl Future<Output = Result<(), Error<Self::Error>>>
     where
         B: core::iter::ExactSizeIterator<Item = &'a [u8; BLOCK_SIZE]> + Send;
 }

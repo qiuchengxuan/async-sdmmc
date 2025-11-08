@@ -2,7 +2,6 @@
 #![doc(hidden)]
 #![cfg_attr(not(any(test, feature = "std")), no_std)]
 
-#[cfg(all(feature = "async", feature = "async-trait"))]
 extern crate alloc;
 #[cfg(feature = "logging")]
 #[macro_use]

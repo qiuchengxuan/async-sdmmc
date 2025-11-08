@@ -1,5 +1,3 @@
-#[cfg(all(feature = "async", feature = "async-trait"))]
-use alloc::boxed::Box;
 use core::slice;
 use core::time::Duration;
 
@@ -17,7 +15,6 @@ use crate::{
 
 use super::bus::{BUSError, Bus, Error, Transfer};
 
-#[cfg_attr(all(feature = "async", feature = "async-trait"), async_trait::async_trait)]
 #[cfg_attr(not(feature = "async"), deasync::deasync)]
 impl<E, F, SPI, CS, C, I> Write for Bus<SPI, CS, C>
 where

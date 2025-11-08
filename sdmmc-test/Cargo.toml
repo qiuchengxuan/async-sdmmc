@@ -8,7 +8,6 @@ repository = "https://github.com/qiuchengxuan/async-sdmmc"
 [dependencies]
 async-embedded-sdmmc = { path = "..", default-features = false, features = ["linux-spi"] }
 async-std = "1.0"
-async-trait = "0.1"
 bitfield = "0.13"
 clap = { version = "4", features = ["derive"] }
 deasync = "0.1"

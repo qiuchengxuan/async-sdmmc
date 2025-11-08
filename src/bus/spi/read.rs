@@ -1,5 +1,3 @@
-#[cfg(all(feature = "async", feature = "async-trait"))]
-use alloc::boxed::Box;
 use core::time::Duration;
 use core::{convert::TryFrom, slice};
 
@@ -52,7 +50,6 @@ where
     }
 }
 
-#[cfg_attr(all(feature = "async", feature = "async-trait"), async_trait::async_trait)]
 #[cfg_attr(not(feature = "async"), deasync::deasync)]
 impl<E, F, SPI, CS, C, I> Read for Bus<SPI, CS, C>
 where

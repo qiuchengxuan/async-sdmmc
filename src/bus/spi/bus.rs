@@ -1,5 +1,3 @@
-#[cfg(all(feature = "async", feature = "async-trait"))]
-use alloc::boxed::Box;
 use core::slice;
 use core::time::Duration;
 
@@ -30,11 +28,16 @@ impl<SPI: core::error::Error, CS: core::error::Error> core::error::Error for Err
 
 pub type BUSError<SPI, CS> = bus::Error<Error<SPI, CS>>;
 
-#[cfg_attr(all(feature = "async", feature = "async-trait"), async_trait::async_trait)]
-#[cfg_attr(not(feature = "async"), deasync::deasync)]
 pub trait Transfer {
     type Error;
-    async fn transfer(&mut self, tx: &[u8], rx: &mut [u8]) -> Result<(), Self::Error>;
+    #[cfg(not(feature = "async"))]
+    fn transfer(&mut self, tx: &[u8], rx: &mut [u8]) -> Result<(), Self::Error>;
+    #[cfg(feature = "async")]
+    fn transfer(
+        &mut self,
+        tx: &[u8],
+        rx: &mut [u8],
+    ) -> impl Future<Output = Result<(), Self::Error>>;
 }
 
 #[cfg(not(feature = "async"))]

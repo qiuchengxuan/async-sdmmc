@@ -9,7 +9,6 @@ use crate::bus::spi;
 
 pub struct SPI(pub Spidev);
 
-#[cfg_attr(all(feature = "async", feature = "async-trait"), async_trait::async_trait)]
 #[cfg_attr(not(feature = "async"), deasync::deasync)]
 impl spi::Transfer for SPI {
     type Error = io::Error;
