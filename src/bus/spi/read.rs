@@ -18,9 +18,9 @@ use super::bus::{BUSError, Bus, Error, Transfer};
 
 impl<E, F, SPI, CS, C, I> Bus<SPI, CS, C>
 where
-    SPI: Transfer<Error = E> + Send,
-    CS: OutputPin<Error = F> + Send,
-    C: Clock<Instant = I> + Send,
+    SPI: Transfer<Error = E>,
+    CS: OutputPin<Error = F>,
+    C: Clock<Instant = I>,
     I: Instant,
 {
     #[cfg_attr(not(feature = "async"), deasync::deasync)]
@@ -53,9 +53,9 @@ where
 #[cfg_attr(not(feature = "async"), deasync::deasync)]
 impl<E, F, SPI, CS, C, I> Read for Bus<SPI, CS, C>
 where
-    SPI: Transfer<Error = E> + Send,
-    CS: OutputPin<Error = F> + Send,
-    C: Clock<Instant = I> + Send,
+    SPI: Transfer<Error = E>,
+    CS: OutputPin<Error = F>,
+    C: Clock<Instant = I>,
     I: Instant,
 {
     type Error = Error<E, F>;
@@ -73,7 +73,7 @@ where
 
     async fn read<'a, B>(&mut self, address: u32, blocks: B) -> Result<(), BUSError<E, F>>
     where
-        B: core::iter::ExactSizeIterator<Item = &'a mut [u8; BLOCK_SIZE]> + Send,
+        B: core::iter::ExactSizeIterator<Item = &'a mut [u8; BLOCK_SIZE]>,
     {
         self.tx(&[0xFF; 5]).await?;
         self.select()?;

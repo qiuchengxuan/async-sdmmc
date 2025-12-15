@@ -17,9 +17,9 @@ pub use bus::{BUSError, Bus, Transfer};
 
 impl<E, F, SPI, CS, C, I> Bus<SPI, CS, C>
 where
-    SPI: Transfer<Error = E> + Send,
-    CS: OutputPin<Error = F> + Send,
-    C: Clock<Instant = I> + Send,
+    SPI: Transfer<Error = E>,
+    CS: OutputPin<Error = F>,
+    C: Clock<Instant = I>,
     I: Instant,
 {
     #[cfg_attr(not(feature = "async"), deasync::deasync)]

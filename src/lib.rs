@@ -56,7 +56,7 @@ where
 
     pub async fn read<'a, B>(&mut self, address: LBA, blocks: B) -> Result<(), Error<E>>
     where
-        B: core::iter::ExactSizeIterator<Item = &'a mut [u8; BLOCK_SIZE]> + Send,
+        B: core::iter::ExactSizeIterator<Item = &'a mut [u8; BLOCK_SIZE]>,
     {
         if blocks.len() == 0 {
             return Ok(());
@@ -69,7 +69,7 @@ where
 
     pub async fn write<'a, B>(&mut self, address: LBA, blocks: B) -> Result<(), Error<E>>
     where
-        B: core::iter::ExactSizeIterator<Item = &'a [u8; BLOCK_SIZE]> + Send,
+        B: core::iter::ExactSizeIterator<Item = &'a [u8; BLOCK_SIZE]>,
     {
         if blocks.len() == 0 {
             return Ok(());
