@@ -40,7 +40,7 @@ pub trait Read {
     #[cfg(not(feature = "async"))]
     fn read<'a, B>(&mut self, block: u32, blocks: B) -> Result<(), Error<Self::Error>>
     where
-        B: core::iter::ExactSizeIterator<Item = &'a mut [u8; BLOCK_SIZE]> + Send;
+        B: core::iter::ExactSizeIterator<Item = &'a mut [u8; BLOCK_SIZE]>;
 
     #[cfg(feature = "async")]
     fn read_csd(&mut self) -> impl Future<Output = Result<CSD, Error<Self::Error>>>;
@@ -51,7 +51,7 @@ pub trait Read {
         blocks: B,
     ) -> impl Future<Output = Result<(), Error<Self::Error>>>
     where
-        B: core::iter::ExactSizeIterator<Item = &'a mut [u8; BLOCK_SIZE]> + Send;
+        B: core::iter::ExactSizeIterator<Item = &'a mut [u8; BLOCK_SIZE]>;
 }
 
 pub trait Write {
@@ -59,7 +59,7 @@ pub trait Write {
     #[cfg(not(feature = "async"))]
     fn write<'a, B>(&mut self, block: u32, blocks: B) -> Result<(), Error<Self::Error>>
     where
-        B: core::iter::ExactSizeIterator<Item = &'a [u8; BLOCK_SIZE]> + Send;
+        B: core::iter::ExactSizeIterator<Item = &'a [u8; BLOCK_SIZE]>;
     #[cfg(feature = "async")]
     fn write<'a, B>(
         &mut self,
@@ -67,5 +67,5 @@ pub trait Write {
         blocks: B,
     ) -> impl Future<Output = Result<(), Error<Self::Error>>>
     where
-        B: core::iter::ExactSizeIterator<Item = &'a [u8; BLOCK_SIZE]> + Send;
+        B: core::iter::ExactSizeIterator<Item = &'a [u8; BLOCK_SIZE]>;
 }

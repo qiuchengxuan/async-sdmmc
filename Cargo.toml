@@ -2,7 +2,7 @@
 name = "async-embedded-sdmmc"
 description = "Embedded sdmmc driver with async support"
 license = "MIT OR Apache-2.0"
-version = "0.3.0"
+version = "0.3.1"
 authors = ["qiuchengxuan <qiuchengxuan@gmail.com>"]
 edition = "2024"
 repository = "https://github.com/qiuchengxuan/async-sdmmc"
