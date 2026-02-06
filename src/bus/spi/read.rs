@@ -7,10 +7,10 @@ use embedded_timers::{clock::Clock, instant::Instant};
 use crate::{
     bus::Read,
     sd::{
+        BLOCK_SIZE,
         command::Command,
         registers::CSD,
         transfer::{Token, TokenError},
-        BLOCK_SIZE,
     },
 };
 

@@ -1,7 +1,7 @@
 use std::{io, time};
 
 use derive_more::Display;
-use gpio::{sysfs::SysFsGpioOutput, GpioOut};
+use gpio::{GpioOut, sysfs::SysFsGpioOutput};
 use spidev::{SpiModeFlags, Spidev, SpidevOptions, SpidevTransfer};
 use thiserror::Error;
 

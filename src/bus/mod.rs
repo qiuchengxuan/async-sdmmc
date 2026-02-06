@@ -5,7 +5,7 @@ pub mod spi;
 use derive_more::Display;
 use thiserror::Error;
 
-use crate::sd::{registers::CSD, response::R1Status, transfer, BLOCK_SIZE};
+use crate::sd::{BLOCK_SIZE, registers::CSD, response::R1Status, transfer};
 
 #[derive(Debug, Error, Display)]
 pub enum Error<BUS> {
@@ -46,9 +46,7 @@ pub trait Read {
     fn read_csd(&mut self) -> impl Future<Output = Result<CSD, Error<Self::Error>>>;
     #[cfg(feature = "async")]
     fn read<'a, B>(
-        &mut self,
-        block: u32,
-        blocks: B,
+        &mut self, block: u32, blocks: B,
     ) -> impl Future<Output = Result<(), Error<Self::Error>>>
     where
         B: core::iter::ExactSizeIterator<Item = &'a mut [u8; BLOCK_SIZE]>;
@@ -62,9 +60,7 @@ pub trait Write {
         B: core::iter::ExactSizeIterator<Item = &'a [u8; BLOCK_SIZE]>;
     #[cfg(feature = "async")]
     fn write<'a, B>(
-        &mut self,
-        block: u32,
-        blocks: B,
+        &mut self, block: u32, blocks: B,
     ) -> impl Future<Output = Result<(), Error<Self::Error>>>
     where
         B: core::iter::ExactSizeIterator<Item = &'a [u8; BLOCK_SIZE]>;
