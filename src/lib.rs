@@ -24,7 +24,7 @@ mod sd;
 
 use bus::Error;
 pub use sd::registers::NumBlocks;
-use sd::{registers::CSD, BLOCK_SIZE};
+use sd::{BLOCK_SIZE, registers::CSD};
 
 pub struct SD<BUS> {
     bus: BUS,

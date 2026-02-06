@@ -8,9 +8,9 @@ use embedded_timers::{clock::Clock, instant::Instant};
 use crate::{
     delay::Delay,
     sd::{
+        Card,
         command::{AppCommand, Command, SendInterfaceCondition},
         response::{self, R1Status},
-        Card,
     },
 };
 pub use bus::{BUSError, Bus, Transfer};

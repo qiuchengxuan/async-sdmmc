@@ -7,9 +7,9 @@ use embedded_timers::{clock::Clock, instant::Instant};
 use crate::{
     bus::Write,
     sd::{
+        BLOCK_SIZE,
         command::Command,
         transfer::{Response, Token, TokenError},
-        BLOCK_SIZE,
     },
 };
 

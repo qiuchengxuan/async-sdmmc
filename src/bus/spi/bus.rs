@@ -34,9 +34,7 @@ pub trait Transfer {
     fn transfer(&mut self, tx: &[u8], rx: &mut [u8]) -> Result<(), Self::Error>;
     #[cfg(feature = "async")]
     fn transfer(
-        &mut self,
-        tx: &[u8],
-        rx: &mut [u8],
+        &mut self, tx: &[u8], rx: &mut [u8],
     ) -> impl Future<Output = Result<(), Self::Error>>;
 }
 
@@ -156,8 +154,7 @@ where
     }
 
     pub(crate) async fn send_app_command(
-        &mut self,
-        cmd: AppCommand,
+        &mut self, cmd: AppCommand,
     ) -> Result<Response, BUSError<E, F>> {
         self.send_command(Command::AppCommand(0)).await?;
         self.send_command(Command::App(cmd)).await
